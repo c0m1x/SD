@@ -1,0 +1,1 @@
+//Trata tudo sobre o servidor

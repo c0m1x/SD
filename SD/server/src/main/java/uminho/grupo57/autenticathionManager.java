@@ -9,12 +9,12 @@ public class autenticathionManager {
             this.userCredentials = new HashMap<>();
         }
         
-        public boolean register(String username, String password) {
+        public boolean register(String username, String hash) {
             if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
                 return false;
             }
     
-            String hashedPassword = hashPassword(password);
+            String hashedPassword = hash;
             return users.putIfAbsent(username, hashedPassword) == null;
         }
 

@@ -1,3 +1,5 @@
+package uminho.grupo57;
+
 import java.util.HashMap;
 
 public class autenticathionManager {

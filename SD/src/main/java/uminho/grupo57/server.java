@@ -1,10 +1,7 @@
-//Trata tudo sobre o servidor
+package uminho.grupo57;//Trata tudo sobre o servidor
 
 import java.io.*;
 import java.net.*;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.locks.*;
 
 public class server {
 

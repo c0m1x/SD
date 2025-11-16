@@ -1,4 +1,4 @@
-//nome auto explicativo
+package uminho.grupo57;//nome auto explicativo
 import java.io.IOException;
 import java.util.*;
 

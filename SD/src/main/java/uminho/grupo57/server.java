@@ -3,6 +3,7 @@ package uminho.grupo57;//Trata tudo sobre o servidor
 import java.io.*;
 import java.net.*;
 
+
 public class server {
 
     private final int port;
@@ -28,13 +29,13 @@ public class server {
         System.out.println("Servidor iniciado na porta " + port);
         System.out.println("Parâmetros: D=" + maxDays + ", S=" + maxSeriesInMemory);
 
-        while (running) {
+        while (isRunning) {
             try {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Nova conexão: " + clientSocket.getRemoteSocketAddress());
                 clientHandlers.submit(new ClientHandler(clientSocket, authManager, timeSeriesManager));
             } catch (IOException e) {
-                if (running) {
+                if (isRunning) {
                     System.err.println("Erro ao aceitar conexão: " + e.getMessage());
                 }
             }

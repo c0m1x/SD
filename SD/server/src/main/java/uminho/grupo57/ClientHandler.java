@@ -89,7 +89,7 @@ public class ClientHandler implements Runnable {
         
         if (authManager.register(username, password)) {
             protocol.sendMessage(out, new protocol.Message(protocol.OK, "Utilizador registado"));
-            System.out.println("✓ Novo utilizador: " + username);
+            System.out.println("Novo utilizador: " + username);
         } else {
             protocol.sendMessage(out, new protocol.Message(protocol.ERROR, "Utilizador já existe"));
         }
@@ -107,7 +107,7 @@ public class ClientHandler implements Runnable {
         if (authManager.authenticate(username, password)) {
             currentUser = username;
             protocol.sendMessage(out, new protocol.Message(protocol.OK, "Login bem-sucedido"));
-            System.out.println("✓ Login: " + username);
+            System.out.println("Login: " + username);
         } else {
             protocol.sendMessage(out, new protocol.Message(protocol.ERROR, "Credenciais inválidas"));
         }
@@ -187,7 +187,7 @@ public class ClientHandler implements Runnable {
         }
     }
     
-    // ✨ NOVO MÉTODO
+
     private void handleNextDay(protocol.Message msg, BufferedWriter out) throws IOException {
         if (currentUser == null) {
             protocol.sendMessage(out, new protocol.Message(protocol.UNAUTHORIZED, "Login necessário"));
@@ -197,7 +197,7 @@ public class ClientHandler implements Runnable {
         tsManager.nextDay();
         int currentDay = tsManager.getCurrentDay();
         protocol.sendMessage(out, new protocol.Message(protocol.OK, "Dia atual: " + currentDay));
-        System.out.println("✓ " + currentUser + " avançou para dia " + currentDay);
+        System.out.println(currentUser + " avançou para dia " + currentDay);
     }
     
     private void handleLogout(protocol.Message msg, BufferedWriter out) throws IOException {

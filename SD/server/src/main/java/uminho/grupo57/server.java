@@ -39,11 +39,11 @@ public class server {
         while (isRunning) {
             try {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("✓ Nova conexão: " + clientSocket.getRemoteSocketAddress());
+                System.out.println("Nova conexão: " + clientSocket.getRemoteSocketAddress());
                 clientHandlers.submit(new ClientHandler(clientSocket, authManager, tsManager));
             } catch (IOException e) {
                 if (isRunning) {
-                    System.err.println("✗ Erro ao aceitar conexão: " + e.getMessage());
+                    System.err.println("Erro ao aceitar conexão: " + e.getMessage());
                 }
             }
         }
@@ -55,7 +55,7 @@ public class server {
 
     public void nextDay() {
         tsManager.nextDay();
-        System.out.println("➡ Avançou para o dia seguinte");
+        System.out.println("Avançou para o dia seguinte");
     }
 
     public void stop() {

@@ -24,7 +24,7 @@ public class TimeSeriesClient {
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
         connected = true;
-        System.out.println("✓ Conectado a " + host + ":" + port);
+        System.out.println("Conectado a " + host + ":" + port);
     }
     
     /**
@@ -38,7 +38,7 @@ public class TimeSeriesClient {
             out.close();
             socket.close();
             connected = false;
-            System.out.println("✓ Desconectado");
+            System.out.println("Desconectado");
         }
     }
     
@@ -136,7 +136,7 @@ public class TimeSeriesClient {
             System.out.printf("Preço mínimo: %.2f€%n", precoMin);
             System.out.printf("Preço médio: %.2f€%n", precoMedio);
         } else {
-            System.err.println("✗ " + response.args[0]);
+            System.err.println("error " + response.args[0]);
         }
     }
     
@@ -161,7 +161,7 @@ public class TimeSeriesClient {
                 System.out.println("  • " + p);
             }
         } else {
-            System.err.println("✗ " + response.args[0]);
+            System.err.println("error " + response.args[0]);
         }
     }
     
@@ -176,6 +176,23 @@ public class TimeSeriesClient {
     private void checkConnection() throws IOException {
         if (!connected) {
             throw new IOException("Não conectado ao servidor");
+        }
+    }
+
+    /**
+     * Solicita ao servidor para avançar para o dia seguinte
+     */
+    public boolean nextDay() throws IOException {
+        checkConnection();
+        protocol.sendMessage(out, new protocol.Message(protocol.NEXT_DAY));
+        protocol.Message response = protocol.receiveMessage(in);
+        
+        if (protocol.OK.equals(response.type)) {
+            System.out.println("validated " + response.args[0]);
+            return true;
+        } else {
+            System.err.println("error " + response.args[0]);
+            return false;
         }
     }
 }

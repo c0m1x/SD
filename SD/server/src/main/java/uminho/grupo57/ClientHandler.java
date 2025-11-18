@@ -62,6 +62,9 @@ public class ClientHandler implements Runnable {
             case protocol.LIST_PRODUCTS:
                 handleListProducts(msg, out);
                 break;
+            case protocol.NEXT_DAY: 
+                handleNextDay(msg, out);
+                break;
             case protocol.LOGOUT:
                 handleLogout(msg, out);
                 break;
@@ -78,6 +81,11 @@ public class ClientHandler implements Runnable {
         
         String username = msg.args[0];
         String password = msg.args[1];
+        
+        if (username.isEmpty() || password.isEmpty()) {
+            protocol.sendMessage(out, new protocol.Message(protocol.ERROR, "Username e password não podem estar vazios"));
+            return;
+        }
         
         if (authManager.register(username, password)) {
             protocol.sendMessage(out, new protocol.Message(protocol.OK, "Utilizador registado"));
@@ -120,6 +128,11 @@ public class ClientHandler implements Runnable {
             String produto = msg.args[0];
             int quantidade = Integer.parseInt(msg.args[1]);
             float preco = Float.parseFloat(msg.args[2]);
+            
+            if (quantidade <= 0 || preco < 0) {
+                protocol.sendMessage(out, new protocol.Message(protocol.ERROR, "Quantidade deve ser positiva e preço não-negativo"));
+                return;
+            }
             
             Event event = new Event(produto, quantidade, preco);
             tsManager.addEvent(currentUser, event);
@@ -174,9 +187,22 @@ public class ClientHandler implements Runnable {
         }
     }
     
+    // ✨ NOVO MÉTODO
+    private void handleNextDay(protocol.Message msg, BufferedWriter out) throws IOException {
+        if (currentUser == null) {
+            protocol.sendMessage(out, new protocol.Message(protocol.UNAUTHORIZED, "Login necessário"));
+            return;
+        }
+        
+        tsManager.nextDay();
+        int currentDay = tsManager.getCurrentDay();
+        protocol.sendMessage(out, new protocol.Message(protocol.OK, "Dia atual: " + currentDay));
+        System.out.println("✓ " + currentUser + " avançou para dia " + currentDay);
+    }
+    
     private void handleLogout(protocol.Message msg, BufferedWriter out) throws IOException {
         if (currentUser != null) {
-            System.out.println("✓ Logout: " + currentUser);
+            System.out.println("Logout: " + currentUser);
             currentUser = null;
         }
         protocol.sendMessage(out, new protocol.Message(protocol.OK, "Logout efetuado"));

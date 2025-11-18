@@ -14,6 +14,7 @@ public class protocol {
     public static final String ADD_EVENT = "ADD_EVENT";
     public static final String QUERY_PRODUCT = "QUERY_PRODUCT";
     public static final String LIST_PRODUCTS = "LIST_PRODUCTS";
+    public static final String NEXT_DAY = "NEXT_DAY"; 
     public static final String LOGOUT = "LOGOUT";
     
     // Respostas

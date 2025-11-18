@@ -87,7 +87,7 @@ public class timeSeriesManager {
         lock.writeLock().lock();
         try {
             currentDay++;
-            System.out.println("→ Dia atual: " + currentDay);
+            System.out.println("Dia atual: " + currentDay);
             
             // Se exceder maxDays, limpar dados mais antigos
             if (currentDay > maxDays) {

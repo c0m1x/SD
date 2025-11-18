@@ -31,7 +31,7 @@ public class Main {
             try {
                 client.disconnect();
             } catch (IOException e) {
-                // ignora erro ao desconectar
+                // ignorar erro ao desconectar
             }
             return;
         }
@@ -52,6 +52,9 @@ public class Main {
                         break;
                     case 3:
                         listarProdutos();
+                        break;
+                    case 4:  
+                        avancarDia();
                         break;
                     case 0:
                         sair = true;
@@ -114,6 +117,7 @@ public class Main {
         System.out.println("│ 1. Registar Compra          │");
         System.out.println("│ 2. Consultar Estatísticas   │");
         System.out.println("│ 3. Listar Produtos          │");
+        System.out.println("│ 4. Avançar Dia              │");  
         System.out.println("│ 0. Sair                     │");
         System.out.println("└─────────────────────────────┘");
         System.out.print("Opção: ");
@@ -166,7 +170,7 @@ public class Main {
         }
         
         if (client.registarCompra(produto, quantidade, preco)) {
-            System.out.println("\n Compra registada com sucesso!");
+            System.out.println("\nCompra registada com sucesso!");
             System.out.printf("  %s - %d unidades - %.2f€%n", produto, quantidade, preco);
         }
     }
@@ -181,5 +185,17 @@ public class Main {
 
     private static void listarProdutos() throws IOException {
         client.listarProdutos();
+    }
+    
+    private static void avancarDia() throws IOException {
+        System.out.println("\n═══ Avançar Dia ═══");
+        System.out.print("Deseja avançar para o dia seguinte? (s/n): ");
+        String resposta = scanner.nextLine().trim().toLowerCase();
+        
+        if (resposta.equals("s") || resposta.equals("sim")) {
+            client.nextDay();
+        } else {
+            System.out.println("Operação cancelada.");
+        }
     }
 }

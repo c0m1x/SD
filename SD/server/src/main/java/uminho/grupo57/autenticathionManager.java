@@ -1,41 +1,49 @@
 package uminho.grupo57;
 
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Gestor de autenticação thread-safe
+ */
 public class autenticathionManager {
-        private final HashMap<String, String> userCredentials;
+    private final ConcurrentHashMap<String, String> userCredentials;
 
-        public autenticathionManager() {
-            this.userCredentials = new HashMap<>();
-        }
-        
-        public boolean register(String username, String hash) {
-            if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
-                return false;
-            }
+    public autenticathionManager() {
+        this.userCredentials = new ConcurrentHashMap<>();
+    }
     
-            String hashedPassword = hash;
-            return users.putIfAbsent(username, hashedPassword) == null;
+    /**
+     * Regista novo utilizador
+     * @return true se registou com sucesso, false se utilizador já existe
+     */
+    public synchronized boolean register(String username, String password) {
+        if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
+            return false;
         }
 
-        public boolean authenticate(String username, String password) {
-            if (username == null || password == null) {
-                return false;
-            }
-    
-            String storedHash = users.get(username);
-            if (storedHash == null) {
-                return false;
-            }
-            return storedHash.equals(password);
+        return userCredentials.putIfAbsent(username, password) == null;
+    }
+
+    /**
+     * Autentica utilizador
+     */
+    public boolean authenticate(String username, String password) {
+        if (username == null || password == null) {
+            return false;
         }
 
-        public boolean userExists(String username) {
-            return users.containsKey(username);
+        String storedPassword = userCredentials.get(username);
+        if (storedPassword == null) {
+            return false;
         }
+        return storedPassword.equals(password);
+    }
 
-        //pode ser útil para debug
-        public int totalUsers() {
-            return users.size();
-        }
+    public boolean userExists(String username) {
+        return userCredentials.containsKey(username);
+    }
+
+    public int totalUsers() {
+        return userCredentials.size();
+    }
 }

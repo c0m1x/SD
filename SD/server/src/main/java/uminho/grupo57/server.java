@@ -6,7 +6,7 @@ import java.util.concurrent.*;
 
 /**
  * Servidor multi-threaded para gestão de séries temporais
- * Usa thread pool para gerir múltiplos clientes simultaneamente
+ * Usa thread pool para gerir vários clientes ao mesmo tempo
  */
 public class server {
 
@@ -31,19 +31,25 @@ public class server {
         ServerSocket serverSocket = new ServerSocket(port);
         System.out.println("┌─────────────────────────────────────────────┐");
         System.out.println("│  SERVIDOR TIMESERIES INICIADO               │");
-        System.out.println("│  Porta: " + port + "                        │");
-        System.out.println("│  Max Dias: " + maxDays + "                  │");
-        System.out.println("│  Séries em Memória: " + maxSeriesInMemory +"│");
+        System.out.println("│  Porta: " + port + "                                │");
+        System.out.println("│  Dias Máximos (D): " + maxDays + "                   │");
+        System.out.println("│  Séries em Memória (S): " + maxSeriesInMemory + "             │");
         System.out.println("└─────────────────────────────────────────────┘");
+
+        // Guardar dados automaticamente quando o servidor fechar
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("\nA encerrar - a guardar dados...");
+            tsManager.persistAll();
+        }));
 
         while (isRunning) {
             try {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Nova conexão: " + clientSocket.getRemoteSocketAddress());
+                System.out.println("Nova ligação de: " + clientSocket.getRemoteSocketAddress());
                 clientHandlers.submit(new ClientHandler(clientSocket, authManager, tsManager));
             } catch (IOException e) {
                 if (isRunning) {
-                    System.err.println("Erro ao aceitar conexão: " + e.getMessage());
+                    System.err.println("Erro ao aceitar ligação: " + e.getMessage());
                 }
             }
         }
@@ -55,24 +61,24 @@ public class server {
 
     public void nextDay() {
         tsManager.nextDay();
-        System.out.println("Avançou para o dia seguinte");
     }
 
     public void stop() {
         isRunning = false;
-        System.out.println("Parando servidor...");
+        tsManager.persistAll(); // Guardar antes de parar
+        System.out.println("A parar o servidor...");
     }
 
     public static void main(String[] args) {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 8080;
-        int maxDays = args.length > 1 ? Integer.parseInt(args[1]) : 7;
-        int maxSeries = args.length > 2 ? Integer.parseInt(args[2]) : 100;
+        int maxDays = args.length > 1 ? Integer.parseInt(args[1]) : 30;
+        int maxSeries = args.length > 2 ? Integer.parseInt(args[2]) : 10;
         
         server srv = new server(port, maxDays, maxSeries);
         try {
             srv.start();
         } catch (IOException e) {
-            System.err.println("Erro fatal no servidor: " + e.getMessage());
+            System.err.println("Erro grave no servidor: " + e.getMessage());
             e.printStackTrace();
         }
     }

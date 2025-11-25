@@ -5,12 +5,12 @@ import java.net.Socket;
 
 /**
  * Cliente API para comunicação com servidor de TimeSeries
- * Utiliza protocolo text-based com mensagens pipe-delimited
+ * Utiliza protocolo binário com DataInputStream/DataOutputStream
  */
 public class TimeSeriesClient {
     private Socket socket;
-    private BufferedReader in;
-    private BufferedWriter out;
+    private DataInputStream in;
+    private DataOutputStream out;
     private boolean connected = false;
     
     /**
@@ -21,8 +21,8 @@ public class TimeSeriesClient {
      */
     public void connect(String host, int port) throws IOException {
         socket = new Socket(host, port);
-        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+        in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+        out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
         connected = true;
         System.out.println("Conectado a " + host + ":" + port);
     }
@@ -33,7 +33,11 @@ public class TimeSeriesClient {
      */
     public void disconnect() throws IOException {
         if (connected) {
-            protocol.sendMessage(out, new protocol.Message(protocol.LOGOUT));
+            try {
+                protocol.sendMessage(out, new protocol.Message(protocol.LOGOUT));
+            } catch (IOException e) {
+                // Ignora erro ao enviar logout
+            }
             in.close();
             out.close();
             socket.close();
@@ -54,11 +58,11 @@ public class TimeSeriesClient {
         protocol.sendMessage(out, new protocol.Message(protocol.REGISTER, username, password));
         protocol.Message response = protocol.receiveMessage(in);
         
-        if (protocol.OK.equals(response.type)) {
-            System.out.println("validated " + response.args[0]);
+        if (response.type == protocol.OK) {
+            System.out.println("✓ " + response.args[0]);
             return true;
         } else {
-            System.err.println("error " + response.args[0]);
+            System.err.println("✗ " + response.args[0]);
             return false;
         }
     }
@@ -75,11 +79,11 @@ public class TimeSeriesClient {
         protocol.sendMessage(out, new protocol.Message(protocol.LOGIN, username, password));
         protocol.Message response = protocol.receiveMessage(in);
         
-        if (protocol.OK.equals(response.type)) {
-            System.out.println("validated " + response.args[0]);
+        if (response.type == protocol.OK) {
+            System.out.println("✓ " + response.args[0]);
             return true;
         } else {
-            System.err.println("error " + response.args[0]);
+            System.err.println("✗ " + response.args[0]);
             return false;
         }
     }
@@ -98,11 +102,11 @@ public class TimeSeriesClient {
             produto, String.valueOf(quantidade), String.valueOf(preco)));
         protocol.Message response = protocol.receiveMessage(in);
         
-        if (protocol.OK.equals(response.type)) {
-            System.out.println("Compra registada: " + produto);
+        if (response.type == protocol.OK) {
+            System.out.println("✓ Compra registada: " + produto);
             return true;
         } else {
-            System.err.println("error " + response.args[0]);
+            System.err.println("✗ " + response.args[0]);
             return false;
         }
     }
@@ -117,17 +121,18 @@ public class TimeSeriesClient {
         protocol.sendMessage(out, new protocol.Message(protocol.QUERY_PRODUCT, produto));
         protocol.Message response = protocol.receiveMessage(in);
         
-        if (protocol.OK.equals(response.type)) {
+        if (response.type == protocol.OK) {
             if (response.args.length == 1 && "0".equals(response.args[0])) {
                 System.out.println("Produto '" + produto + "' não encontrado.");
                 return;
             }
             
-            int qtdTotal = Integer.parseInt(response.args[0]);
-            float precoTotal = Float.parseFloat(response.args[1]);
-            float precoMax = Float.parseFloat(response.args[2]);
-            float precoMin = Float.parseFloat(response.args[3]);
-            float precoMedio = Float.parseFloat(response.args[4]);
+            String[] parts = response.args[0].split("\\|");
+            int qtdTotal = Integer.parseInt(parts[0]);
+            float precoTotal = Float.parseFloat(parts[1]);
+            float precoMax = Float.parseFloat(parts[2]);
+            float precoMin = Float.parseFloat(parts[3]);
+            float precoMedio = Float.parseFloat(parts[4]);
             
             System.out.println("\n═══ Estatísticas: " + produto + " ═══");
             System.out.println("Quantidade total: " + qtdTotal + " unidades");
@@ -136,7 +141,7 @@ public class TimeSeriesClient {
             System.out.printf("Preço mínimo: %.2f€%n", precoMin);
             System.out.printf("Preço médio: %.2f€%n", precoMedio);
         } else {
-            System.err.println("error " + response.args[0]);
+            System.err.println("✗ " + response.args[0]);
         }
     }
     
@@ -149,7 +154,7 @@ public class TimeSeriesClient {
         protocol.sendMessage(out, new protocol.Message(protocol.LIST_PRODUCTS));
         protocol.Message response = protocol.receiveMessage(in);
         
-        if (protocol.OK.equals(response.type)) {
+        if (response.type == protocol.OK) {
             if (response.args.length == 0 || response.args[0].isEmpty()) {
                 System.out.println("Nenhum produto registado.");
                 return;
@@ -161,7 +166,24 @@ public class TimeSeriesClient {
                 System.out.println("  • " + p);
             }
         } else {
-            System.err.println("error " + response.args[0]);
+            System.err.println("✗ " + response.args[0]);
+        }
+    }
+    
+    /**
+     * Solicita ao servidor para avançar para o dia seguinte
+     */
+    public boolean nextDay() throws IOException {
+        checkConnection();
+        protocol.sendMessage(out, new protocol.Message(protocol.NEXT_DAY));
+        protocol.Message response = protocol.receiveMessage(in);
+        
+        if (response.type == protocol.OK) {
+            System.out.println("✓ " + response.args[0]);
+            return true;
+        } else {
+            System.err.println("✗ " + response.args[0]);
+            return false;
         }
     }
     
@@ -176,23 +198,6 @@ public class TimeSeriesClient {
     private void checkConnection() throws IOException {
         if (!connected) {
             throw new IOException("Não conectado ao servidor");
-        }
-    }
-
-    /**
-     * Solicita ao servidor para avançar para o dia seguinte
-     */
-    public boolean nextDay() throws IOException {
-        checkConnection();
-        protocol.sendMessage(out, new protocol.Message(protocol.NEXT_DAY));
-        protocol.Message response = protocol.receiveMessage(in);
-        
-        if (protocol.OK.equals(response.type)) {
-            System.out.println("validated " + response.args[0]);
-            return true;
-        } else {
-            System.err.println("error " + response.args[0]);
-            return false;
         }
     }
 }

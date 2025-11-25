@@ -32,15 +32,18 @@ public class timeSeriesManager {
     }
     
     /**
-     * Adiciona evento à série de um utilizador
+     * Adiciona evento à série de um utilizador no dia corrente
      */
     public void addEvent(String username, Event event) {
         TimeSeries series = getOrCreateSeries(username);
-        series.addEvent(event);
+        
+        // Criar novo evento com o dia corrente
+        Event eventWithDay = new Event(event.getNome(), event.getQuantidade(), event.getPreco(), currentDay);
+        series.addEvent(eventWithDay);
     }
     
     /**
-     * Consulta produto na série de um utilizador
+     * Consulta produto na série de um utilizador (todos os dias)
      */
     public List<Event> getEventosProduto(String username, String produto) {
         TimeSeries series = userSeries.get(username);
@@ -48,6 +51,28 @@ public class timeSeriesManager {
             return Collections.emptyList();
         }
         return series.getEventosProduto(produto);
+    }
+    
+    /**
+     * Consulta produto em um dia específico
+     */
+    public List<Event> getEventosProdutoDia(String username, String produto, int dia) {
+        TimeSeries series = userSeries.get(username);
+        if (series == null) {
+            return Collections.emptyList();
+        }
+        return series.getEventosProdutoDia(produto, dia);
+    }
+    
+    /**
+     * Consulta produto nos últimos d dias (excluindo dia corrente)
+     */
+    public List<Event> getEventosProdutoUltimosDias(String username, String produto, int numeroDias) {
+        TimeSeries series = userSeries.get(username);
+        if (series == null) {
+            return Collections.emptyList();
+        }
+        return series.getEventosProdutoUltimosDias(produto, currentDay, numeroDias);
     }
     
     /**
@@ -62,7 +87,7 @@ public class timeSeriesManager {
     }
     
     /**
-     * Obtém estatísticas de um produto
+     * Obtém estatísticas de um produto (todos os dias)
      */
     public Map<String, Object> getStats(String username, String produto) {
         TimeSeries series = userSeries.get(username);
@@ -81,33 +106,68 @@ public class timeSeriesManager {
     }
     
     /**
-     * Avança para o dia seguinte (pode limpar dados antigos)
+     * Obtém estatísticas nos últimos d dias (excluindo dia corrente)
+     */
+    public Map<String, Object> getStatsUltimosDias(String username, String produto, int numeroDias) {
+        TimeSeries series = userSeries.get(username);
+        if (series == null) {
+            return Collections.emptyMap();
+        }
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("quantidade_total", series.getTotalQuantidadeProdutoUltimosDias(produto, currentDay, numeroDias));
+        stats.put("volume_total", series.getVolumeTotalUltimosDias(produto, currentDay, numeroDias));
+        stats.put("preco_max", series.getPrecoMaximoUltimosDias(produto, currentDay, numeroDias).orElse(0f));
+        stats.put("preco_medio", series.getPrecoMedioUltimosDias(produto, currentDay, numeroDias).orElse(0f));
+        
+        return stats;
+    }
+    
+    /**
+     * Avança para o dia seguinte
      */
     public void nextDay() {
         lock.writeLock().lock();
         try {
             currentDay++;
-            System.out.println("Dia atual: " + currentDay);
+            System.out.println("═══ Avançou para dia " + currentDay + " ═══");
             
-            // Se exceder maxDays, limpar dados mais antigos
+            // Remover eventos mais antigos que maxDays
             if (currentDay > maxDays) {
-                // Implementação futura: remover eventos com mais de maxDays
+                int diaMinimo = currentDay - maxDays;
+                for (TimeSeries series : userSeries.values()) {
+                    series.removeEventosAnterioresA(diaMinimo);
+                }
+                System.out.println("Removidos eventos anteriores ao dia " + diaMinimo);
             }
             
-            // Se exceder maxSeriesInMemory, fazer cleanup
-            if (userSeries.size() > maxSeriesInMemory) {
-                // Implementação futura: remover séries menos usadas
-            }
+            // TODO: Implementar gestão de memória (S séries)
+            // TODO: Implementar persistência em disco
+            // TODO: Notificar threads bloqueadas
+            
         } finally {
             lock.writeLock().unlock();
         }
     }
     
     public int getCurrentDay() {
-        return currentDay;
+        lock.readLock().lock();
+        try {
+            return currentDay;
+        } finally {
+            lock.readLock().unlock();
+        }
     }
     
     public int getTotalUsers() {
         return userSeries.size();
+    }
+    
+    public int getMaxDays() {
+        return maxDays;
+    }
+    
+    public int getMaxSeriesInMemory() {
+        return maxSeriesInMemory;
     }
 }

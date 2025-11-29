@@ -1,17 +1,22 @@
 package uminho.grupo57;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+import java.io.IOException;
+
+/**
+ * Ponto de entrada principal do servidor
+ */
 public class Main {
     public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
-
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : 8080;
+        int maxDays = args.length > 1 ? Integer.parseInt(args[1]) : 30;
+        int maxSeries = args.length > 2 ? Integer.parseInt(args[2]) : 10;
+        
+        server srv = new server(port, maxDays, maxSeries);
+        try {
+            srv.start();
+        } catch (IOException e) {
+            System.err.println("Erro fatal no servidor: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

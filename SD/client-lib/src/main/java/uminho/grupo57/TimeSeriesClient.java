@@ -34,7 +34,7 @@ public class TimeSeriesClient {
     public void disconnect() throws IOException {
         if (connected) {
             try {
-                protocol.sendMessage(out, new protocol.Message(protocol.LOGOUT));
+                Protocol.sendMessage(out, new Protocol.Message(Protocol.LOGOUT));
             } catch (IOException e) {
                 // Ignora erro ao enviar logout
             }
@@ -55,10 +55,10 @@ public class TimeSeriesClient {
      */
     public boolean register(String username, String password) throws IOException {
         checkConnection();
-        protocol.sendMessage(out, new protocol.Message(protocol.REGISTER, username, password));
-        protocol.Message response = protocol.receiveMessage(in);
+        Protocol.sendMessage(out, new Protocol.Message(Protocol.REGISTER, username, password));
+        Protocol.Message response = Protocol.receiveMessage(in);
         
-        if (response.type == protocol.OK) {
+        if (response.type == Protocol.OK) {
             System.out.println("✓ " + response.args[0]);
             return true;
         } else {
@@ -76,10 +76,10 @@ public class TimeSeriesClient {
      */
     public boolean login(String username, String password) throws IOException {
         checkConnection();
-        protocol.sendMessage(out, new protocol.Message(protocol.LOGIN, username, password));
-        protocol.Message response = protocol.receiveMessage(in);
+        Protocol.sendMessage(out, new Protocol.Message(Protocol.LOGIN, username, password));
+        Protocol.Message response = Protocol.receiveMessage(in);
         
-        if (response.type == protocol.OK) {
+        if (response.type == Protocol.OK) {
             System.out.println("✓ " + response.args[0]);
             return true;
         } else {
@@ -98,11 +98,11 @@ public class TimeSeriesClient {
      */
     public boolean registarCompra(String produto, int quantidade, float preco) throws IOException {
         checkConnection();
-        protocol.sendMessage(out, new protocol.Message(protocol.ADD_EVENT, 
+        Protocol.sendMessage(out, new Protocol.Message(Protocol.ADD_EVENT,
             produto, String.valueOf(quantidade), String.valueOf(preco)));
-        protocol.Message response = protocol.receiveMessage(in);
+        Protocol.Message response = Protocol.receiveMessage(in);
         
-        if (response.type == protocol.OK) {
+        if (response.type == Protocol.OK) {
             System.out.println("✓ Compra registada: " + produto);
             return true;
         } else {
@@ -118,10 +118,10 @@ public class TimeSeriesClient {
      */
     public void consultarProduto(String produto) throws IOException {
         checkConnection();
-        protocol.sendMessage(out, new protocol.Message(protocol.QUERY_PRODUCT, produto));
-        protocol.Message response = protocol.receiveMessage(in);
+        Protocol.sendMessage(out, new Protocol.Message(Protocol.QUERY_PRODUCT, produto));
+        Protocol.Message response = Protocol.receiveMessage(in);
         
-        if (response.type == protocol.OK) {
+        if (response.type == Protocol.OK) {
             if (response.args.length == 1 && "0".equals(response.args[0])) {
                 System.out.println("Produto '" + produto + "' não encontrado.");
                 return;
@@ -151,10 +151,10 @@ public class TimeSeriesClient {
      */
     public void listarProdutos() throws IOException {
         checkConnection();
-        protocol.sendMessage(out, new protocol.Message(protocol.LIST_PRODUCTS));
-        protocol.Message response = protocol.receiveMessage(in);
+        Protocol.sendMessage(out, new Protocol.Message(Protocol.LIST_PRODUCTS));
+        Protocol.Message response = Protocol.receiveMessage(in);
         
-        if (response.type == protocol.OK) {
+        if (response.type == Protocol.OK) {
             if (response.args.length == 0 || response.args[0].isEmpty()) {
                 System.out.println("Nenhum produto registado.");
                 return;
@@ -175,10 +175,10 @@ public class TimeSeriesClient {
      */
     public boolean nextDay() throws IOException {
         checkConnection();
-        protocol.sendMessage(out, new protocol.Message(protocol.NEXT_DAY));
-        protocol.Message response = protocol.receiveMessage(in);
+        Protocol.sendMessage(out, new Protocol.Message(Protocol.NEXT_DAY));
+        Protocol.Message response = Protocol.receiveMessage(in);
         
-        if (response.type == protocol.OK) {
+        if (response.type == Protocol.OK) {
             System.out.println("✓ " + response.args[0]);
             return true;
         } else {

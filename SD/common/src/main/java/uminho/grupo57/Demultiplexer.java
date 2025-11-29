@@ -34,7 +34,14 @@ public class Demultiplexer implements AutoCloseable
                     TaggedConnection.Frame f = connection.receive();
                     lockGlobal.lock();
                     try{
-
+                        Entrada entrada = mensagens.get(f.tag);
+                        if(entrada == null)
+                        {
+                            entrada.mensagens.add(f.data);
+                            mensagens.put(f.tag, entrada);
+                        }
+                        entrada.mensagens.add(f.data);
+                        entrada.condition.signalAll();
                     }finally{
                         lockGlobal.unlock();
                     }

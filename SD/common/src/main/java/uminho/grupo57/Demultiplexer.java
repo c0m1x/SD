@@ -37,7 +37,7 @@ public class Demultiplexer implements AutoCloseable
                         Entrada entrada = mensagens.get(f.tag);
                         if(entrada == null)
                         {
-                            entrada.mensagens.add(f.data);
+                            entrada = new Entrada();
                             mensagens.put(f.tag, entrada);
                         }
                         entrada.mensagens.add(f.data);
@@ -86,7 +86,8 @@ public class Demultiplexer implements AutoCloseable
         try {
             Entrada entrada = mensagens.get(tag);
             if(entrada == null)
-                mensagens.put(tag, new Entrada());
+                entrada = new Entrada();
+                mensagens.put(tag, entrada);
 
             while(entrada.mensagens.isEmpty())
             {

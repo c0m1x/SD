@@ -13,7 +13,7 @@ import java.io.*;
  *   - int: tamanho do argumento
  *   - bytes: dados do argumento
  */
-public class protocol {
+public class Protocol {
     
     // Tipos de mensagem (comandos)
     public static final byte REGISTER = 1;

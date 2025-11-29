@@ -9,6 +9,7 @@ public class Demultiplexer implements AutoCloseable
 {
     private final TaggedConnection connection;
     private final ReentrantLock lockGlobal = new ReentrantLock();
+    private final ReentrantLock lockIO = new ReentrantLock();
     private Map<Integer, Entrada> mensagens = new HashMap<>();
     private IOException ioe;
 
@@ -25,43 +26,6 @@ public class Demultiplexer implements AutoCloseable
         this.connection = conn;
     }
 
-    public void start()
-    {
-        new Thread(()->
-        {
-            try{
-                for(;;){
-                    TaggedConnection.Frame f = connection.receive();
-                    lockGlobal.lock();
-                    try{
-                        Entrada entrada = mensagens.get(f.tag);
-                        if(entrada == null)
-                        {
-                            entrada.mensagens.add(f.data);
-                            mensagens.put(f.tag, entrada);
-                        }
-                        entrada.mensagens.add(f.data);
-                        entrada.condition.signalAll();
-                    }finally{
-                        lockGlobal.unlock();
-                    }
-                }
-            }catch(IOException e){
-                lockGlobal.lock();
-                try{
-                    ioe = e;
-
-                    for(Entrada entrada : mensagens.values())
-                    {
-                        entrada.condition.signalAll();
-                    }
-                }finally{
-                    lockGlobal.unlock();
-                }
-            }
-
-        }).start();
-    }
 
     public void close() throws IOException
     {
@@ -75,29 +39,112 @@ public class Demultiplexer implements AutoCloseable
         connection.close();
     }
 
+
     public void send(int tag, byte[] data) throws IOException
     {
         connection.send(tag, data);
     }
 
-    public byte[] receive(int tag) throws IOException, InterruptedException
+
+    private byte[] checkTagQueue(int tag, Entrada entrada) throws IOException
     {
         lockGlobal.lock();
-        try {
-            Entrada entrada = mensagens.get(tag);
-            if(entrada == null)
-                mensagens.put(tag, new Entrada());
+        try{
+            if(!entrada.mensagens.isEmpty())
+                return entrada.mensagens.poll();
+            return null;
+        }finally{
+            lockGlobal.unlock();
+        }
+    }
+
+
+    private TaggedConnection.Frame readFrame() throws IOException
+    {
+        lockIO.lock();
+        try
+        {
+            return connection.receive();
+
+        }catch (IOException e){
+            lockGlobal.lock();
+            try
+            {
+                ioe = e;
+                for(Entrada entrada : mensagens.values())
+                    entrada.condition.signalAll();
+
+            }finally{
+                lockGlobal.unlock();
+            }
+            throw e;
+
+        }finally{
+            lockIO.unlock();
+        }
+    }
+
+
+    private byte[] waitCorrectFrame(int tag, Entrada entrada, TaggedConnection.Frame frame) throws IOException, InterruptedException
+    {
+        lockGlobal.lock();
+        try
+        {
+            Entrada entradaAlvoFrame = mensagens.get(frame.tag);
+            if(entradaAlvoFrame == null)
+            {
+                entradaAlvoFrame = new Entrada();
+                mensagens.put(frame.tag, entradaAlvoFrame);
+            }
+
+            entradaAlvoFrame.mensagens.add(frame.data);
+            entradaAlvoFrame.condition.signalAll();
+
+            if(frame.tag == tag)
+                return entradaAlvoFrame.mensagens.poll(); //Se o frame que recebemos tem a mesma tag que a que queremos retorna
 
             while(entrada.mensagens.isEmpty())
             {
-                if(ioe != null) //Verificar se a conexão falhou
+                if(ioe != null) //Testa se a conexão está a funcionar
                     throw ioe;
-
                 entrada.condition.await();
             }
-            return entrada.mensagens.poll();
-        } finally {
+            return entrada.mensagens.poll(); //Mal receba uma mensagem return
+
+        }finally{
             lockGlobal.unlock();
+        }
+    }
+
+    //TODO: Confirmar se podemos ter estes locks e unlocks a meio
+    //TODO: Confirmar se é melhor adicionar timeouts
+    public byte[] receive(int tag) throws IOException, InterruptedException
+    {
+        Entrada entrada; //Confirmamos se existe uma entrada para esta tag, se não existir adicionamos
+        lockGlobal.lock();
+        try
+        {
+            entrada = mensagens.get(tag);
+            if(entrada == null)
+            {
+                entrada = new Entrada();
+                mensagens.put(tag, entrada);
+            }
+
+        }finally{
+            lockGlobal.unlock();
+        }
+
+        for(;;) //Loop até arranjar uma resposta
+        {
+            byte[] resposta = checkTagQueue(tag, entrada); //Se já houver uma mensagem na Deque removemo-la e retornamo-la
+            if(resposta != null)
+                return resposta;
+
+            TaggedConnection.Frame frame = readFrame(); //Lê um frame do socket
+            resposta = waitCorrectFrame(tag, entrada, frame);
+            if(resposta != null)
+                return resposta;
         }
     }
 }

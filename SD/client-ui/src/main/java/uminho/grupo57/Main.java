@@ -29,7 +29,7 @@ public class Main {
         // Autenticação obrigatória
         if (!autenticar()) {
             try {
-                client.disconnect();
+                client.close();
             } catch (IOException e) {
                 // ignorar erro ao desconectar
             }
@@ -63,8 +63,11 @@ public class Main {
                     default:
                         System.out.println("Opção inválida!");
                 }
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 System.err.println("Erro de comunicação: " + e.getMessage());
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
             }
             
             if(!sair) {
@@ -74,7 +77,7 @@ public class Main {
         }
         
         try {
-            client.disconnect();
+            client.close();
         } catch (IOException e) {
             // ignorar
         }
@@ -104,8 +107,11 @@ public class Main {
                 }
             }
             return client.login(username, password);
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             System.err.println("Erro de autenticação: " + e.getMessage());
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             return false;
         }
     }
@@ -132,7 +138,7 @@ public class Main {
         }
     }
 
-    private static void registarCompra() throws IOException {
+    private static void registarCompra() throws IOException, InterruptedException {
         System.out.println("\n═══ Registar Nova Compra ═══");
         
         System.out.print("Nome do produto: ");
@@ -175,7 +181,7 @@ public class Main {
         }
     }
 
-    private static void consultarProduto() throws IOException {
+    private static void consultarProduto() throws IOException, InterruptedException {
         System.out.println("\n═══ Consultar Estatísticas ═══");
         System.out.print("Nome do produto: ");
         String produto = scanner.nextLine().trim();
@@ -183,11 +189,11 @@ public class Main {
         client.consultarProduto(produto);
     }
 
-    private static void listarProdutos() throws IOException {
+    private static void listarProdutos() throws IOException, InterruptedException {
         client.listarProdutos();
     }
     
-    private static void avancarDia() throws IOException {
+    private static void avancarDia() throws IOException, InterruptedException {
         System.out.println("\n═══ Avançar Dia ═══");
         System.out.print("Deseja avançar para o dia seguinte? (s/n): ");
         String resposta = scanner.nextLine().trim().toLowerCase();

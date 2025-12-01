@@ -17,8 +17,10 @@ public class timeSeriesManager {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private int currentDay;
     
+    
     // Componentes modulares
     private final SeriesPersistence persistence;
+    private final NotificationManager notificationManager;
     private final SeriesMemoryManager memoryManager;
     
     public timeSeriesManager(int maxDays, int maxSeriesInMemory) {
@@ -34,6 +36,7 @@ public class timeSeriesManager {
         // Inicializar componentes
         this.persistence = new SeriesPersistence(dataDirectory);
         this.memoryManager = new SeriesMemoryManager(maxSeriesInMemory, persistence);
+        this.notificationManager = new NotificationManager();
         
         System.out.println("╔══════════════════════════════════════════════════╗");
         System.out.println("║  GESTOR DE SÉRIES TEMPORAIS INICIALIZADO        ║");
@@ -59,6 +62,9 @@ public class timeSeriesManager {
         // Criar novo evento com o dia corrente
         Event eventWithDay = new Event(event.getNome(), event.getQuantidade(), event.getPreco(), currentDay);
         series.addEvent(eventWithDay, currentDay);
+        
+        // Notificar notificações bloqueantes
+        notificationManager.onEventAdded(username, event.getNome());
     }
     
     /**
@@ -179,7 +185,9 @@ public class timeSeriesManager {
             Map<String, Object> memStats = memoryManager.getMemoryStats();
             System.out.println("Memória: " + memStats);
             
-            // TODO: Notificar threads bloqueadas (WAIT_SIMULTANEOUS, WAIT_CONSECUTIVE)
+            // Notificar threads bloqueadas (WAIT_SIMULTANEOUS, WAIT_CONSECUTIVE)
+            notificationManager.onDayAdvance();
+            System.out.println("Threads bloqueadas notificadas.");
             
             System.out.println("Dia " + currentDay + " pronto!\n");
             
@@ -251,6 +259,49 @@ public class timeSeriesManager {
         return userSeries.size();
     }
     
+    
+    /**
+     * Filtra eventos de múltiplos produtos num dia específico
+     */
+    public Map<String, List<Event>> getEventosFiltrados(String username, int dia, String[] produtos) {
+        lock.readLock().lock();
+        try {
+            TimeSeries ts = userSeries.get(username);
+            if (ts == null) {
+                return Collections.emptyMap();
+            }
+            
+            Map<String, List<Event>> resultado = new HashMap<>();
+            Set<String> produtosSet = new HashSet<>(Arrays.asList(produtos));
+            
+            for (String produto : produtosSet) {
+                List<Event> eventos = ts.getEventosProdutoDia(produto, dia, currentDay);
+                if (!eventos.isEmpty()) {
+                    resultado.put(produto, eventos);
+                }
+            }
+            
+            return resultado;
+            
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Getter para NotificationManager
+     */
+    public NotificationManager getNotificationManager() {
+        return notificationManager;
+    }
+
+    /**
+     * Getter para parâmetro D
+     */
+    public int getD() {
+        return maxDays;
+    }
+
     public int getMaxDays() {
         return maxDays;
     }
@@ -258,4 +309,5 @@ public class timeSeriesManager {
     public int getMaxSeriesInMemory() {
         return maxSeriesInMemory;
     }
+
 }

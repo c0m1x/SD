@@ -228,7 +228,38 @@ public class ClientHandler implements Runnable {
             Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
             return;
         }
-        Protocol.sendMessage(out, Protocol.error("Funcionalidade não implementada"));
+        
+        if (msg.args.length < 2) {
+            Protocol.sendMessage(out, Protocol.error("Uso: AGGREGATE_RANGE produto numeroDias"));
+            return;
+        }
+        
+        try {
+            String produto = msg.args[0];
+            int numeroDias = Integer.parseInt(msg.args[1]);
+            
+            if (numeroDias <= 0 || numeroDias > tsManager.getD()) {
+                Protocol.sendMessage(out, Protocol.error("Número de dias inválido (1 a " + tsManager.getD() + ")"));
+                return;
+            }
+            
+            java.util.Map<String, Object> stats = tsManager.getStatsUltimosDias(currentUser, produto, numeroDias);
+            
+            if (stats.isEmpty()) {
+                Protocol.sendMessage(out, Protocol.ok("0"));
+            } else {
+                String response = String.format("%d|%.2f|%.2f|%.2f|%.2f",
+                    stats.get("quantidade_total"),
+                    stats.get("preco_total"),
+                    stats.get("preco_max"),
+                    stats.get("preco_min"),
+                    stats.get("preco_medio")
+                );
+                Protocol.sendMessage(out, Protocol.ok(response));
+            }
+        } catch (NumberFormatException e) {
+            Protocol.sendMessage(out, Protocol.error("Número de dias inválido"));
+        }
     }
     
     private void handleFilterEvents(Protocol.Message msg, DataOutputStream out) throws IOException {
@@ -236,7 +267,57 @@ public class ClientHandler implements Runnable {
             Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
             return;
         }
-        Protocol.sendMessage(out, Protocol.error("Funcionalidade não implementada"));
+        
+        if (msg.args.length < 2) {
+            Protocol.sendMessage(out, Protocol.error("Uso: FILTER_EVENTS dia produto1 [produto2 ...]"));
+            return;
+        }
+        
+        try {
+            int dia = Integer.parseInt(msg.args[0]);
+            
+            if (dia < 1 || dia > tsManager.getD()) {
+                Protocol.sendMessage(out, Protocol.error("Dia inválido (1 a " + tsManager.getD() + ")"));
+                return;
+            }
+            
+            String[] produtos = new String[msg.args.length - 1];
+            System.arraycopy(msg.args, 1, produtos, 0, msg.args.length - 1);
+            
+            java.util.Map<String, java.util.List<Event>> eventosFiltrados = 
+                tsManager.getEventosFiltrados(currentUser, dia, produtos);
+            
+            if (eventosFiltrados.isEmpty()) {
+                Protocol.sendMessage(out, Protocol.ok(""));
+                return;
+            }
+            
+            // Serialização eficiente: produto|numEventos|qtd:preco,qtd:preco||produto2|...
+            StringBuilder response = new StringBuilder();
+            boolean first = true;
+            
+            for (java.util.Map.Entry<String, java.util.List<Event>> entry : eventosFiltrados.entrySet()) {
+                if (!first) response.append("||");
+                first = false;
+                
+                String produto = entry.getKey();
+                java.util.List<Event> eventos = entry.getValue();
+                
+                response.append(produto).append("|").append(eventos.size()).append("|");
+                
+                boolean firstEvento = true;
+                for (Event e : eventos) {
+                    if (!firstEvento) response.append(",");
+                    firstEvento = false;
+                    response.append(e.getQuantidade()).append(":").append(String.format("%.2f", e.getPreco()));
+                }
+            }
+            
+            Protocol.sendMessage(out, Protocol.ok(response.toString()));
+            
+        } catch (NumberFormatException e) {
+            Protocol.sendMessage(out, Protocol.error("Dia inválido"));
+        }
     }
     
     private void handleWaitSimultaneous(Protocol.Message msg, DataOutputStream out) throws IOException {
@@ -244,7 +325,28 @@ public class ClientHandler implements Runnable {
             Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
             return;
         }
-        Protocol.sendMessage(out, Protocol.error("Funcionalidade não implementada"));
+        
+        if (msg.args.length < 2) {
+            Protocol.sendMessage(out, Protocol.error("Uso: WAIT_SIMULTANEOUS produto1 produto2"));
+            return;
+        }
+        
+        String produto1 = msg.args[0];
+        String produto2 = msg.args[1];
+        
+        try {
+            boolean satisfied = tsManager.getNotificationManager()
+                .waitSimultaneous(currentUser, produto1, produto2);
+            
+            if (satisfied) {
+                Protocol.sendMessage(out, Protocol.ok("true"));
+            } else {
+                Protocol.sendMessage(out, Protocol.ok("false"));
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Protocol.sendMessage(out, Protocol.error("Interrompido"));
+        }
     }
     
     private void handleWaitConsecutive(Protocol.Message msg, DataOutputStream out) throws IOException {
@@ -252,6 +354,34 @@ public class ClientHandler implements Runnable {
             Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
             return;
         }
-        Protocol.sendMessage(out, Protocol.error("Funcionalidade não implementada"));
+        
+        if (msg.args.length < 2) {
+            Protocol.sendMessage(out, Protocol.error("Uso: WAIT_CONSECUTIVE produto n"));
+            return;
+        }
+        
+        try {
+            String produto = msg.args[0];
+            int n = Integer.parseInt(msg.args[1]);
+            
+            if (n <= 0) {
+                Protocol.sendMessage(out, Protocol.error("Número de vendas deve ser positivo"));
+                return;
+            }
+            
+            boolean satisfied = tsManager.getNotificationManager()
+                .waitConsecutive(currentUser, produto, n);
+            
+            if (satisfied) {
+                Protocol.sendMessage(out, Protocol.ok(produto));
+            } else {
+                Protocol.sendMessage(out, Protocol.ok("null"));
+            }
+        } catch (NumberFormatException e) {
+            Protocol.sendMessage(out, Protocol.error("Número de vendas inválido"));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Protocol.sendMessage(out, Protocol.error("Interrompido"));
+        }
     }
 }

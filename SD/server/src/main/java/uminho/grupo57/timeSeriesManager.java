@@ -148,7 +148,7 @@ public class timeSeriesManager {
             currentDay++;
             
             System.out.println("\n╔════════════════════════════════════════════╗");
-            System.out.println("║  DIA " + currentDay + " INICIADO                         ║");
+            System.out.println("║  DIA " + currentDay + " INICIADO                            ║");
             System.out.println("╚════════════════════════════════════════════╝");
             
             // 1. Persistir dia anterior para cada utilizador

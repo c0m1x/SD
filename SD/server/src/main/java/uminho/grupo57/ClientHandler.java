@@ -159,31 +159,41 @@ public class ClientHandler implements Runnable {
             return Protocol.error("Quantidade/preço inválidos");
         }
     }
-    
+
     private Protocol.Message handleQueryProduct(Protocol.Message msg) {
         if (currentUser == null) {
             return Protocol.unauthorized("Login necessário");
         }
-        
+
         if (msg.args.length < 1) {
             return Protocol.error("Uso: QUERY_PRODUCT produto");
         }
-        
+
         String produto = msg.args[0];
         java.util.Map<String, Object> stats = tsManager.getStats(currentUser, produto);
-        
+
+        System.out.println("[DEBUG] Stats para produto '" + produto + "': " + stats);
+
         if (stats.isEmpty()) {
             return Protocol.ok("0");
-        } else {
-            String response = String.format("%d|%.2f|%.2f|%.2f|%.2f",
-                stats.get("quantidade_total"),
-                stats.get("preco_total"),
-                stats.get("preco_max"),
-                stats.get("preco_min"),
-                stats.get("preco_medio")
-            );
-            return Protocol.ok(response);
         }
+
+        // Verificar se tem quantidade > 0
+        Object qtdObj = stats.get("quantidade_total");
+        if (qtdObj == null || ((Number) qtdObj).intValue() == 0) {
+            return Protocol.ok("0");
+        }
+
+        // Extrair valores
+        int qtdTotal = ((Number) qtdObj).intValue();
+        float volumeTotal = ((Number) stats.get("volume_total")).floatValue();
+        float precoMax = ((Number) stats.get("preco_max")).floatValue();
+        float precoMin = ((Number) stats.get("preco_min")).floatValue();
+        float precoMedio = ((Number) stats.get("preco_medio")).floatValue();
+
+        String response = String.format("%d|%.2f|%.2f|%.2f|%.2f",
+            qtdTotal, volumeTotal, precoMax, precoMin, precoMedio);
+        return Protocol.ok(response);
     }
     
     private Protocol.Message handleListProducts(Protocol.Message msg) {

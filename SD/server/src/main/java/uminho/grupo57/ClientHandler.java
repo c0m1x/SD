@@ -215,6 +215,11 @@ public class ClientHandler implements Runnable {
             return Protocol.unauthorized("Login necessário");
         }
         
+        // Apenas administrador pode avançar o dia
+        if (!authManager.isAdmin(currentUser)) {
+            return Protocol.error("Apenas o administrador pode avançar o dia");
+        }
+        
         tsManager.nextDay();
         int currentDay = tsManager.getCurrentDay();
         System.out.println(currentUser + " avançou para dia " + currentDay);

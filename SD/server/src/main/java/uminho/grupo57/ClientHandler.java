@@ -172,7 +172,6 @@ public class ClientHandler implements Runnable {
         String produto = msg.args[0];
         java.util.Map<String, Object> stats = tsManager.getStats(currentUser, produto);
 
-        System.out.println("[DEBUG] Stats para produto '" + produto + "': " + stats);
 
         if (stats.isEmpty()) {
             return Protocol.ok("0");
@@ -191,7 +190,7 @@ public class ClientHandler implements Runnable {
         float precoMin = ((Number) stats.get("preco_min")).floatValue();
         float precoMedio = ((Number) stats.get("preco_medio")).floatValue();
 
-        String response = String.format("%d|%.2f|%.2f|%.2f|%.2f",
+        String response = String.format(java.util.Locale.US, "%d|%.2f|%.2f|%.2f|%.2f",
             qtdTotal, volumeTotal, precoMax, precoMin, precoMedio);
         return Protocol.ok(response);
     }
@@ -252,7 +251,7 @@ public class ClientHandler implements Runnable {
             if (stats.isEmpty()) {
                 return Protocol.ok("0");
             } else {
-                String response = String.format("%d|%.2f|%.2f|%.2f|%.2f",
+                String response = String.format(java.util.Locale.US, "%d|%.2f|%.2f|%.2f|%.2f",
                     stats.get("quantidade_total"),
                     stats.get("preco_total"),
                     stats.get("preco_max"),
@@ -308,7 +307,7 @@ public class ClientHandler implements Runnable {
                 for (Event e : eventos) {
                     if (!firstEvento) response.append(",");
                     firstEvento = false;
-                    response.append(e.getQuantidade()).append(":").append(String.format("%.2f", e.getPreco()));
+                    response.append(e.getQuantidade()).append(":").append(String.format(java.util.Locale.US, "%.2f", e.getPreco()));
                 }
             }
             

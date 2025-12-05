@@ -40,9 +40,9 @@ public class timeSeriesManager {
         
         System.out.println("╔══════════════════════════════════════════════════╗");
         System.out.println("║  GESTOR DE SÉRIES TEMPORAIS INICIALIZADO        ║");
-        System.out.println("║  Parâmetro D (dias): " + maxDays + "                         ║");
-        System.out.println("║  Parâmetro S (séries): " + maxSeriesInMemory + "                          ║");
-        System.out.println("║  Diretório dados: " + dataDirectory + "                    ║");
+        System.out.println(String.format("║  Parâmetro D (dias): %-30s║", maxDays));
+        System.out.println(String.format("║  Parâmetro S (séries): %-28s║", maxSeriesInMemory));
+        System.out.println(String.format("║  Diretório dados: %-32s║", dataDirectory));
         System.out.println("╚══════════════════════════════════════════════════╝");
     }
     

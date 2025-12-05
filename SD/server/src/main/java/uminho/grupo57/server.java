@@ -31,15 +31,16 @@ public class server {
         ServerSocket serverSocket = new ServerSocket(port);
         System.out.println("┌─────────────────────────────────────────────┐");
         System.out.println("│  SERVIDOR TIMESERIES INICIADO               │");
-        System.out.println("│  Porta: " + port + "                                │");
-        System.out.println("│  Dias Máximos (D): " + maxDays + "                   │");
-        System.out.println("│  Séries em Memória (S): " + maxSeriesInMemory + "             │");
+        System.out.println(String.format("│  Porta: %-36s│", port));
+        System.out.println(String.format("│  Dias Máximos (D): %-26s│", maxDays));
+        System.out.println(String.format("│  Séries em Memória (S): %-21s│", maxSeriesInMemory));
         System.out.println("└─────────────────────────────────────────────┘");
 
         // Guardar dados automaticamente quando o servidor fechar
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\nA encerrar - a guardar dados...");
             tsManager.persistAll();
+            authManager.persistAll();
         }));
 
         while (isRunning) {
@@ -66,6 +67,7 @@ public class server {
     public void stop() {
         isRunning = false;
         tsManager.persistAll(); // Guardar antes de parar
+            authManager.persistAll();
         System.out.println("A parar o servidor...");
     }
 

@@ -5,7 +5,7 @@ import java.net.Socket;
 
 /**
  * Handler que trata um cliente em thread separada
- * Implementa protocolo binário de comunicação request-response
+ * Implementa protocolo binário de comunicação request-response COM TAGS
  */
 public class ClientHandler implements Runnable {
     
@@ -22,24 +22,43 @@ public class ClientHandler implements Runnable {
     
     @Override
     public void run() {
-        try (
-            DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()))
-        ) {
+        TaggedConnection connection = null;
+        try {
+            connection = new TaggedConnection(socket);
             System.out.println("[" + socket.getRemoteSocketAddress() + "] Cliente conectado");
             
-            Protocol.Message msg;
-            while ((msg = Protocol.receiveMessage(in)) != null) {
-                handleMessage(msg, out);
+            while (true) {
+                // Receber frame do cliente
+                TaggedConnection.Frame frame = connection.receive();
+                
+                // Deserializar mensagem
+                ByteArrayInputStream bais = new ByteArrayInputStream(frame.data);
+                DataInputStream dis = new DataInputStream(bais);
+                Protocol.Message msg = Protocol.receiveMessage(dis);
+                
+                // Processar
+                Protocol.Message response = handleMessage(msg);
+                
+                // Serializar resposta
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream dos = new DataOutputStream(baos);
+                Protocol.sendMessage(dos, response);
+                dos.flush();
+                
+                // Enviar resposta com mesmo tag
+                connection.send(frame.tag, baos.toByteArray());
             }
             
         } catch (EOFException e) {
-            // Cliente desconectou
             System.out.println("[" + socket.getRemoteSocketAddress() + "] Cliente desconectou");
         } catch (IOException e) {
             System.err.println("[" + socket.getRemoteSocketAddress() + "] Erro: " + e.getMessage());
+            e.printStackTrace();
         } finally {
             try {
+                if (connection != null) {
+                    connection.close();
+                }
                 socket.close();
                 System.out.println("[" + socket.getRemoteSocketAddress() + "] Desconectado");
             } catch (IOException e) {
@@ -48,72 +67,58 @@ public class ClientHandler implements Runnable {
         }
     }
     
-    private void handleMessage(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleMessage(Protocol.Message msg) {
         switch (msg.type) {
             case Protocol.REGISTER:
-                handleRegister(msg, out);
-                break;
+                return handleRegister(msg);
             case Protocol.LOGIN:
-                handleLogin(msg, out);
-                break;
+                return handleLogin(msg);
             case Protocol.ADD_EVENT:
-                handleAddEvent(msg, out);
-                break;
+                return handleAddEvent(msg);
             case Protocol.QUERY_PRODUCT:
-                handleQueryProduct(msg, out);
-                break;
+                return handleQueryProduct(msg);
             case Protocol.LIST_PRODUCTS:
-                handleListProducts(msg, out);
-                break;
+                return handleListProducts(msg);
             case Protocol.NEXT_DAY:
-                handleNextDay(msg, out);
-                break;
+                return handleNextDay(msg);
             case Protocol.LOGOUT:
-                handleLogout(msg, out);
-                break;
+                return handleLogout(msg);
             case Protocol.AGGREGATE_RANGE:
-                handleAggregateRange(msg, out);
-                break;
+                return handleAggregateRange(msg);
             case Protocol.FILTER_EVENTS:
-                handleFilterEvents(msg, out);
-                break;
+                return handleFilterEvents(msg);
             case Protocol.WAIT_SIMULTANEOUS:
-                handleWaitSimultaneous(msg, out);
-                break;
+                return handleWaitSimultaneous(msg);
             case Protocol.WAIT_CONSECUTIVE:
-                handleWaitConsecutive(msg, out);
-                break;
+                return handleWaitConsecutive(msg);
             default:
-                Protocol.sendMessage(out, Protocol.error("Comando desconhecido"));
+                return Protocol.error("Comando desconhecido");
         }
     }
     
-    private void handleRegister(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleRegister(Protocol.Message msg) {
         if (msg.args.length < 2) {
-            Protocol.sendMessage(out, Protocol.error("Uso: REGISTER username password"));
-            return;
+            return Protocol.error("Uso: REGISTER username password");
         }
         
         String username = msg.args[0];
         String password = msg.args[1];
         
         if (username.isEmpty() || password.isEmpty()) {
-            Protocol.sendMessage(out, Protocol.error("Username e password não podem estar vazios"));
-            return;
+            return Protocol.error("Username e password não podem estar vazios");
         }
         
         if (authManager.register(username, password)) {
-            Protocol.sendMessage(out, Protocol.ok("Utilizador registado"));
             System.out.println("Novo utilizador: " + username);
+            return Protocol.ok("Utilizador registado");
         } else {
-            Protocol.sendMessage(out, Protocol.error("Utilizador já existe"));
+            return Protocol.error("Utilizador já existe");
         }
     }
     
-    private void handleLogin(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleLogin(Protocol.Message msg) {
         if (msg.args.length < 2) {
-            Protocol.sendMessage(out, Protocol.error("Uso: LOGIN username password"));
-            return;
+            return Protocol.error("Uso: LOGIN username password");
         }
         
         String username = msg.args[0];
@@ -121,22 +126,20 @@ public class ClientHandler implements Runnable {
         
         if (authManager.authenticate(username, password)) {
             currentUser = username;
-            Protocol.sendMessage(out, Protocol.ok("Login bem-sucedido"));
             System.out.println("Login: " + username);
+            return Protocol.ok("Login bem-sucedido");
         } else {
-            Protocol.sendMessage(out, Protocol.error("Credenciais inválidas"));
+            return Protocol.error("Credenciais inválidas");
         }
     }
     
-    private void handleAddEvent(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleAddEvent(Protocol.Message msg) {
         if (currentUser == null) {
-            Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
-            return;
+            return Protocol.unauthorized("Login necessário");
         }
         
         if (msg.args.length < 3) {
-            Protocol.sendMessage(out, Protocol.error("Uso: ADD_EVENT produto quantidade preco"));
-            return;
+            return Protocol.error("Uso: ADD_EVENT produto quantidade preco");
         }
         
         try {
@@ -145,93 +148,94 @@ public class ClientHandler implements Runnable {
             float preco = Float.parseFloat(msg.args[2]);
             
             if (quantidade <= 0 || preco < 0) {
-                Protocol.sendMessage(out, Protocol.error("Quantidade deve ser positiva e preço não-negativo"));
-                return;
+                return Protocol.error("Quantidade deve ser positiva e preço não-negativo");
             }
             
             Event event = new Event(produto, quantidade, preco);
             tsManager.addEvent(currentUser, event);
             
-            Protocol.sendMessage(out, Protocol.ok("Evento registado"));
+            return Protocol.ok("Evento registado");
         } catch (NumberFormatException e) {
-            Protocol.sendMessage(out, Protocol.error("Quantidade/preço inválidos"));
+            return Protocol.error("Quantidade/preço inválidos");
         }
     }
-    
-    private void handleQueryProduct(Protocol.Message msg, DataOutputStream out) throws IOException {
+
+    private Protocol.Message handleQueryProduct(Protocol.Message msg) {
         if (currentUser == null) {
-            Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
-            return;
+            return Protocol.unauthorized("Login necessário");
         }
-        
+
         if (msg.args.length < 1) {
-            Protocol.sendMessage(out, Protocol.error("Uso: QUERY_PRODUCT produto"));
-            return;
+            return Protocol.error("Uso: QUERY_PRODUCT produto");
         }
-        
+
         String produto = msg.args[0];
         java.util.Map<String, Object> stats = tsManager.getStats(currentUser, produto);
-        
+
+
         if (stats.isEmpty()) {
-            Protocol.sendMessage(out, Protocol.ok("0"));
-        } else {
-            String response = String.format("%d|%.2f|%.2f|%.2f|%.2f",
-                stats.get("quantidade_total"),
-                stats.get("preco_total"),
-                stats.get("preco_max"),
-                stats.get("preco_min"),
-                stats.get("preco_medio")
-            );
-            Protocol.sendMessage(out, Protocol.ok(response));
+            return Protocol.ok("0");
         }
+
+        // Verificar se tem quantidade > 0
+        Object qtdObj = stats.get("quantidade_total");
+        if (qtdObj == null || ((Number) qtdObj).intValue() == 0) {
+            return Protocol.ok("0");
+        }
+
+        // Extrair valores
+        int qtdTotal = ((Number) qtdObj).intValue();
+        float volumeTotal = ((Number) stats.get("volume_total")).floatValue();
+        float precoMax = ((Number) stats.get("preco_max")).floatValue();
+        float precoMin = ((Number) stats.get("preco_min")).floatValue();
+        float precoMedio = ((Number) stats.get("preco_medio")).floatValue();
+
+        String response = String.format(java.util.Locale.US, "%d|%.2f|%.2f|%.2f|%.2f",
+            qtdTotal, volumeTotal, precoMax, precoMin, precoMedio);
+        return Protocol.ok(response);
     }
     
-    private void handleListProducts(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleListProducts(Protocol.Message msg) {
         if (currentUser == null) {
-            Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
-            return;
+            return Protocol.unauthorized("Login necessário");
         }
         
         java.util.Set<String> produtos = tsManager.getAllProdutos(currentUser);
         
         if (produtos.isEmpty()) {
-            Protocol.sendMessage(out, Protocol.ok(""));
+            return Protocol.ok("");
         } else {
             String response = String.join(",", produtos);
-            Protocol.sendMessage(out, Protocol.ok(response));
+            return Protocol.ok(response);
         }
     }
     
-    private void handleNextDay(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleNextDay(Protocol.Message msg) {
         if (currentUser == null) {
-            Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
-            return;
+            return Protocol.unauthorized("Login necessário");
         }
         
         tsManager.nextDay();
         int currentDay = tsManager.getCurrentDay();
-        Protocol.sendMessage(out, Protocol.ok("Dia atual: " + currentDay));
         System.out.println(currentUser + " avançou para dia " + currentDay);
+        return Protocol.ok("Dia atual: " + currentDay);
     }
     
-    private void handleLogout(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleLogout(Protocol.Message msg) {
         if (currentUser != null) {
             System.out.println("Logout: " + currentUser);
             currentUser = null;
         }
-        Protocol.sendMessage(out, Protocol.ok("Logout efetuado"));
+        return Protocol.ok("Logout efetuado");
     }
     
-    // Placeholder para funcionalidades futuras
-    private void handleAggregateRange(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleAggregateRange(Protocol.Message msg) {
         if (currentUser == null) {
-            Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
-            return;
+            return Protocol.unauthorized("Login necessário");
         }
         
         if (msg.args.length < 2) {
-            Protocol.sendMessage(out, Protocol.error("Uso: AGGREGATE_RANGE produto numeroDias"));
-            return;
+            return Protocol.error("Uso: AGGREGATE_RANGE produto numeroDias");
         }
         
         try {
@@ -239,46 +243,42 @@ public class ClientHandler implements Runnable {
             int numeroDias = Integer.parseInt(msg.args[1]);
             
             if (numeroDias <= 0 || numeroDias > tsManager.getD()) {
-                Protocol.sendMessage(out, Protocol.error("Número de dias inválido (1 a " + tsManager.getD() + ")"));
-                return;
+                return Protocol.error("Número de dias inválido (1 a " + tsManager.getD() + ")");
             }
             
             java.util.Map<String, Object> stats = tsManager.getStatsUltimosDias(currentUser, produto, numeroDias);
             
             if (stats.isEmpty()) {
-                Protocol.sendMessage(out, Protocol.ok("0"));
+                return Protocol.ok("0");
             } else {
-                String response = String.format("%d|%.2f|%.2f|%.2f|%.2f",
+                String response = String.format(java.util.Locale.US, "%d|%.2f|%.2f|%.2f|%.2f",
                     stats.get("quantidade_total"),
                     stats.get("preco_total"),
                     stats.get("preco_max"),
                     stats.get("preco_min"),
                     stats.get("preco_medio")
                 );
-                Protocol.sendMessage(out, Protocol.ok(response));
+                return Protocol.ok(response);
             }
         } catch (NumberFormatException e) {
-            Protocol.sendMessage(out, Protocol.error("Número de dias inválido"));
+            return Protocol.error("Número de dias inválido");
         }
     }
     
-    private void handleFilterEvents(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleFilterEvents(Protocol.Message msg) {
         if (currentUser == null) {
-            Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
-            return;
+            return Protocol.unauthorized("Login necessário");
         }
         
         if (msg.args.length < 2) {
-            Protocol.sendMessage(out, Protocol.error("Uso: FILTER_EVENTS dia produto1 [produto2 ...]"));
-            return;
+            return Protocol.error("Uso: FILTER_EVENTS dia produto1 [produto2 ...]");
         }
         
         try {
             int dia = Integer.parseInt(msg.args[0]);
             
             if (dia < 1 || dia > tsManager.getD()) {
-                Protocol.sendMessage(out, Protocol.error("Dia inválido (1 a " + tsManager.getD() + ")"));
-                return;
+                return Protocol.error("Dia inválido (1 a " + tsManager.getD() + ")");
             }
             
             String[] produtos = new String[msg.args.length - 1];
@@ -288,11 +288,9 @@ public class ClientHandler implements Runnable {
                 tsManager.getEventosFiltrados(currentUser, dia, produtos);
             
             if (eventosFiltrados.isEmpty()) {
-                Protocol.sendMessage(out, Protocol.ok(""));
-                return;
+                return Protocol.ok("");
             }
             
-            // Serialização eficiente: produto|numEventos|qtd:preco,qtd:preco||produto2|...
             StringBuilder response = new StringBuilder();
             boolean first = true;
             
@@ -309,26 +307,24 @@ public class ClientHandler implements Runnable {
                 for (Event e : eventos) {
                     if (!firstEvento) response.append(",");
                     firstEvento = false;
-                    response.append(e.getQuantidade()).append(":").append(String.format("%.2f", e.getPreco()));
+                    response.append(e.getQuantidade()).append(":").append(String.format(java.util.Locale.US, "%.2f", e.getPreco()));
                 }
             }
             
-            Protocol.sendMessage(out, Protocol.ok(response.toString()));
+            return Protocol.ok(response.toString());
             
         } catch (NumberFormatException e) {
-            Protocol.sendMessage(out, Protocol.error("Dia inválido"));
+            return Protocol.error("Dia inválido");
         }
     }
     
-    private void handleWaitSimultaneous(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleWaitSimultaneous(Protocol.Message msg) {
         if (currentUser == null) {
-            Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
-            return;
+            return Protocol.unauthorized("Login necessário");
         }
         
         if (msg.args.length < 2) {
-            Protocol.sendMessage(out, Protocol.error("Uso: WAIT_SIMULTANEOUS produto1 produto2"));
-            return;
+            return Protocol.error("Uso: WAIT_SIMULTANEOUS produto1 produto2");
         }
         
         String produto1 = msg.args[0];
@@ -339,25 +335,23 @@ public class ClientHandler implements Runnable {
                 .waitSimultaneous(currentUser, produto1, produto2);
             
             if (satisfied) {
-                Protocol.sendMessage(out, Protocol.ok("true"));
+                return Protocol.ok("true");
             } else {
-                Protocol.sendMessage(out, Protocol.ok("false"));
+                return Protocol.ok("false");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            Protocol.sendMessage(out, Protocol.error("Interrompido"));
+            return Protocol.error("Interrompido");
         }
     }
     
-    private void handleWaitConsecutive(Protocol.Message msg, DataOutputStream out) throws IOException {
+    private Protocol.Message handleWaitConsecutive(Protocol.Message msg) {
         if (currentUser == null) {
-            Protocol.sendMessage(out, Protocol.unauthorized("Login necessário"));
-            return;
+            return Protocol.unauthorized("Login necessário");
         }
         
         if (msg.args.length < 2) {
-            Protocol.sendMessage(out, Protocol.error("Uso: WAIT_CONSECUTIVE produto n"));
-            return;
+            return Protocol.error("Uso: WAIT_CONSECUTIVE produto n");
         }
         
         try {
@@ -365,23 +359,22 @@ public class ClientHandler implements Runnable {
             int n = Integer.parseInt(msg.args[1]);
             
             if (n <= 0) {
-                Protocol.sendMessage(out, Protocol.error("Número de vendas deve ser positivo"));
-                return;
+                return Protocol.error("Número de vendas deve ser positivo");
             }
             
             boolean satisfied = tsManager.getNotificationManager()
                 .waitConsecutive(currentUser, produto, n);
             
             if (satisfied) {
-                Protocol.sendMessage(out, Protocol.ok(produto));
+                return Protocol.ok(produto);
             } else {
-                Protocol.sendMessage(out, Protocol.ok("null"));
+                return Protocol.ok("null");
             }
         } catch (NumberFormatException e) {
-            Protocol.sendMessage(out, Protocol.error("Número de vendas inválido"));
+            return Protocol.error("Número de vendas inválido");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            Protocol.sendMessage(out, Protocol.error("Interrompido"));
+            return Protocol.error("Interrompido");
         }
     }
 }

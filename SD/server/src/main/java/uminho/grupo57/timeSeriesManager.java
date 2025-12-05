@@ -39,10 +39,10 @@ public class timeSeriesManager {
         this.notificationManager = new NotificationManager();
         
         System.out.println("╔══════════════════════════════════════════════════╗");
-        System.out.println("║  GESTOR DE SÉRIES TEMPORAIS INICIALIZADO        ║");
-        System.out.println("║  Parâmetro D (dias): " + maxDays + "                         ║");
-        System.out.println("║  Parâmetro S (séries): " + maxSeriesInMemory + "                          ║");
-        System.out.println("║  Diretório dados: " + dataDirectory + "                    ║");
+        System.out.println("║  GESTOR DE SÉRIES TEMPORAIS INICIALIZADO         ║");
+        System.out.println(String.format("║  Parâmetro D (dias): %-28s║", maxDays));
+        System.out.println(String.format("║  Parâmetro S (séries): %-26s║", maxSeriesInMemory));
+        System.out.println(String.format("║  Diretório dados: %-31s║", dataDirectory));
         System.out.println("╚══════════════════════════════════════════════════╝");
     }
     

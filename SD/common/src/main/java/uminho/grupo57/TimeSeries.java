@@ -105,7 +105,7 @@ public class TimeSeries implements Serializable {
         int contadorEventos = 0;
         
         // Processa dia a dia (incremental)
-        for (int dia = diaInicio; dia < diaCorrente; dia++) {
+        for (int dia = diaInicio; dia <= diaCorrente; dia++) {
             // Usa cache se disponível
             AggregationCache cache = getOrCalculateCache(nomeProduto, dia, diaCorrente);
             

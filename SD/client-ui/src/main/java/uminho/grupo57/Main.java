@@ -81,38 +81,65 @@ public class Main {
         } catch (IOException e) {
             // ignorar
         }
-        scanner.close();
-    }
+           scanner.close();
+       }
 
-    private static boolean autenticar() {
-        System.out.println("\n┌─────────────────────────────┐");
-        System.out.println("│       AUTENTICAÇÃO          │");
-        System.out.println("├─────────────────────────────┤");
-        System.out.println("│ 1. Login                    │");
-        System.out.println("│ 2. Registar novo utilizador │");
-        System.out.println("└─────────────────────────────┘");
-        System.out.print("Opção: ");
-        
-        int opcao = lerOpcao();
-        
-        System.out.print("Username: ");
-        String username = scanner.nextLine().trim();
-        System.out.print("Password: ");
-        String password = scanner.nextLine().trim();
-        
-        try {
-            if (opcao == 2) {
-                if (!client.register(username, password)) {
-                    return false;
+        private static boolean autenticar() {
+        while (true) {
+            System.out.println("\n┌─────────────────────────────┐");
+            System.out.println("│       AUTENTICAÇÃO          │");
+            System.out.println("├─────────────────────────────┤");
+            System.out.println("│ 1. Login                    │");
+            System.out.println("│ 2. Registar novo utilizador │");
+            System.out.println("│ 0. Sair                     │");
+            System.out.println("└─────────────────────────────┘");
+            System.out.print("Opção: ");
+
+            int opcao = lerOpcao();
+
+            if (opcao == 0) {
+                System.out.println("A sair...");
+                return false;
+            }
+
+            if (opcao != 1 && opcao != 2) {
+                System.out.println("Opção inválida!");
+                continue;
+            }
+
+            System.out.print("Username: ");
+            String username = scanner.nextLine().trim();
+            System.out.print("Password: ");
+            String password = scanner.nextLine().trim();
+
+            try {
+                if (opcao == 2) {
+                    // Tentar registar
+                    if (client.register(username, password)) {
+                        // Registo bem-sucedido, agora fazer login
+                        if (client.login(username, password)) {
+                            return true;
+                        }
+                    }
+                    // Se falhou, continuar o loop para tentar novamente
+                    System.out.println("\nPressione ENTER para tentar novamente...");
+                    scanner.nextLine();
+                } else {
+                    // Login direto
+                    if (client.login(username, password)) {
+                        return true;
+                    }
+                    // Se falhou, continuar o loop
+                    System.out.println("\nPressione ENTER para tentar novamente...");
+                    scanner.nextLine();
                 }
+            } catch (IOException | InterruptedException e) {
+                System.err.println("Erro de comunicação: " + e.getMessage());
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                return false;
             }
-            return client.login(username, password);
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Erro de autenticação: " + e.getMessage());
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-            return false;
         }
     }
     

@@ -32,8 +32,8 @@ public class server {
         System.out.println("┌─────────────────────────────────────────────┐");
         System.out.println("│  SERVIDOR TIMESERIES INICIADO               │");
         System.out.println(String.format("│  Porta: %-36s│", port));
-        System.out.println(String.format("│  Dias Máximos (D): %-26s│", maxDays));
-        System.out.println(String.format("│  Séries em Memória (S): %-21s│", maxSeriesInMemory));
+        System.out.println(String.format("│  Dias Máximos (D): %-25s│", maxDays));
+        System.out.println(String.format("│  Séries em Memória (S): %-20s│", maxSeriesInMemory));
         System.out.println("└─────────────────────────────────────────────┘");
 
         // Guardar dados automaticamente quando o servidor fechar

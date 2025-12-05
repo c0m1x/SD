@@ -5,10 +5,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Gestor de autenticação thread-safe com persistência
+ * Conta admin pré-definida: admin/1234
  */
 public class autenticathionManager {
     private final ConcurrentHashMap<String, String> userCredentials;
     private final String usersFilePath;
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_PASSWORD = "1234";
 
     public autenticathionManager() {
         this("data/users.dat");
@@ -17,15 +20,31 @@ public class autenticathionManager {
     public autenticathionManager(String usersFilePath) {
         this.userCredentials = new ConcurrentHashMap<>();
         this.usersFilePath = usersFilePath;
+        
+        // Adicionar conta admin por defeito
+        userCredentials.put(ADMIN_USERNAME, ADMIN_PASSWORD);
+        
         loadUsers();
     }
     
     /**
+     * Verifica se o utilizador é administrador
+     */
+    public boolean isAdmin(String username) {
+        return ADMIN_USERNAME.equals(username);
+    }
+    
+    /**
      * Regista novo utilizador e persiste
-     * @return true se registou com sucesso, false se utilizador já existe
+     * @return true se registou com sucesso, false se utilizador já existe ou é admin
      */
     public synchronized boolean register(String username, String password) {
         if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
+            return false;
+        }
+        
+        // Não permitir registo com username "admin"
+        if (ADMIN_USERNAME.equals(username)) {
             return false;
         }
 
@@ -60,44 +79,56 @@ public class autenticathionManager {
     }
 
     /**
-     * Carrega utilizadores do disco
+     * Carrega utilizadores do ficheiro
      */
     private void loadUsers() {
         File file = new File(usersFilePath);
         if (!file.exists()) {
-            System.out.println("Ficheiro de utilizadores não encontrado. Será criado ao registar o primeiro utilizador.");
             return;
         }
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
             @SuppressWarnings("unchecked")
             ConcurrentHashMap<String, String> loaded = (ConcurrentHashMap<String, String>) ois.readObject();
-            userCredentials.putAll(loaded);
-            System.out.println("✓ Carregados " + userCredentials.size() + " utilizadores do disco");
+            
+            // Adicionar utilizadores carregados (exceto se for admin - manter a conta padrão)
+            for (var entry : loaded.entrySet()) {
+                if (!ADMIN_USERNAME.equals(entry.getKey())) {
+                    userCredentials.putIfAbsent(entry.getKey(), entry.getValue());
+                }
+            }
+            
+            System.out.println("Carregados " + (userCredentials.size() - 1) + " utilizadores (+ admin)");
         } catch (IOException | ClassNotFoundException e) {
             System.err.println("Erro ao carregar utilizadores: " + e.getMessage());
         }
     }
 
     /**
-     * Guarda utilizadores no disco
+     * Guarda utilizadores no ficheiro
      */
     private synchronized void saveUsers() {
         File file = new File(usersFilePath);
         file.getParentFile().mkdirs();
 
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
-            oos.writeObject(userCredentials);
+            // Guardar apenas utilizadores normais (não guardar admin)
+            ConcurrentHashMap<String, String> toSave = new ConcurrentHashMap<>();
+            for (var entry : userCredentials.entrySet()) {
+                if (!ADMIN_USERNAME.equals(entry.getKey())) {
+                    toSave.put(entry.getKey(), entry.getValue());
+                }
+            }
+            oos.writeObject(toSave);
         } catch (IOException e) {
             System.err.println("Erro ao guardar utilizadores: " + e.getMessage());
         }
     }
 
     /**
-     * Persiste utilizadores (chamado no shutdown)
-     */
+    * Persiste todos os utilizadores (chamado externamente)
+    */
     public void persistAll() {
         saveUsers();
-        System.out.println("✓ Utilizadores persistidos: " + userCredentials.size());
     }
 }

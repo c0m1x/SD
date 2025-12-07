@@ -1,6 +1,6 @@
 Como Correr o Projeto
 1️--Compilar (Maven multi-module)
-cd /home/tiago/3ano1sem/SD/Projeto/SD/SD
+
 mvn clean install
 
 

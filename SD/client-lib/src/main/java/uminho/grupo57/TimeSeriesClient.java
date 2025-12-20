@@ -20,6 +20,7 @@ public class TimeSeriesClient implements AutoCloseable {
         Socket socket = new Socket(host, port);
         connection = new TaggedConnection(socket);
         demux = new Demultiplexer(connection);
+        demux.start();
         connected = true;
         System.out.println("Conectado a " + host + ":" + port);
     }

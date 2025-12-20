@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * Gestor de memória para séries temporais
  * Mantém no máximo S séries em memória (além do dia corrente)
- * Usa política LRU para eviction
+ * Usa LRU 
  */
 public class SeriesMemoryManager {
     private final int maxSeriesInMemory; // Parâmetro S
@@ -160,7 +160,7 @@ public class SeriesMemoryManager {
     private DayData loadFromDiskAndManageMemory(String username, int dia) throws Exception {
         lock.writeLock().lock();
         try {
-            // Verificar se precisa fazer eviction
+
             int totalSeries = countNonCurrentDaySeries();
             if (totalSeries >= maxSeriesInMemory) {
                 evictLeastRecentlyUsed();

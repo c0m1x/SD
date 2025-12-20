@@ -46,16 +46,12 @@ public class timeSeriesManager {
         System.out.println("╚══════════════════════════════════════════════════╝");
     }
     
-    /**
-     * Obtém ou cria a série temporal de um utilizador
-     */
+    //Obtém ou cria a série temporal de um utilizador
     public TimeSeries getOrCreateSeries(String username) {
         return userSeries.computeIfAbsent(username, k -> new TimeSeries(k, memoryManager));
     }
     
-    /**
-     * Adiciona evento à série de um utilizador no dia corrente
-     */
+    //Adiciona evento à série de um utilizador no dia corrente
     public void addEvent(String username, Event event) {
         TimeSeries series = getOrCreateSeries(username);
         
@@ -67,9 +63,7 @@ public class timeSeriesManager {
         notificationManager.onEventAdded(username, event.getNome());
     }
     
-    /**
-     * Consulta produto em um dia específico
-     */
+    //Consulta produto em um dia específico
     public List<Event> getEventosProdutoDia(String username, String produto, int dia) {
         TimeSeries series = userSeries.get(username);
         if (series == null) {
@@ -78,16 +72,13 @@ public class timeSeriesManager {
         return series.getEventosProdutoDia(produto, dia, currentDay);
     }
     
-    /**
-     * Lista todos os produtos de um utilizador (dia corrente)
-     */
+    //Lista todos os produtos de um utilizador (dia corrente)
     public Set<String> getAllProdutos(String username) {
         TimeSeries series = userSeries.get(username);
         if (series == null) {
             return Collections.emptySet();
         }
-        
-        // Obter produtos do dia corrente
+
         try {
             DayData currentDayData = memoryManager.getDayData(username, currentDay, currentDay);
             return currentDayData.getAllProdutos();
@@ -97,9 +88,7 @@ public class timeSeriesManager {
         }
     }
     
-    /**
-     * Obtém estatísticas de um produto em um dia específico (COM CACHE)
-     */
+    //Obtém estatísticas de um produto em um dia específico (COM CACHE)
     public Map<String, Object> getStatsForDay(String username, String produto, int dia) {
         TimeSeries series = userSeries.get(username);
         if (series == null) {
@@ -109,29 +98,20 @@ public class timeSeriesManager {
         return series.getAggregationForDay(produto, dia, currentDay);
     }
     
-    /**
-     * Obtém estatísticas nos últimos d dias (COM CACHE + PERSISTÊNCIA)
-     * Processa incrementalmente do disco sem exceder limite S
-     */
+    //Obtém estatísticas nos últimos d dias (COM CACHE + PERSISTÊNCIA)
     public Map<String, Object> getStatsUltimosDias(String username, String produto, int numeroDias) {
         TimeSeries series = userSeries.get(username);
         if (series == null) {
             return Collections.emptyMap();
         }
-        
-        // Este método já gere automaticamente:
-        // - Cache para dias já calculados
-        // - Carregamento do disco quando necessário
-        // - Eviction LRU para respeitar limite S
         return series.getAggregationRange(produto, currentDay, numeroDias);
     }
     
     /**
      * Obtém estatísticas de um produto (todos os dias)
-     * ATENÇÃO: Pode ser lento para muitos dias
+     * TODO (?): Pode ser lento para muitos dias
      */
     public Map<String, Object> getStats(String username, String produto) {
-        // Delegar para getStatsUltimosDias com todos os dias
         return getStatsUltimosDias(username, produto, currentDay);
     }
     
@@ -196,9 +176,7 @@ public class timeSeriesManager {
         }
     }
     
-    /**
-     * Força persistência de todas as séries (para encerramento limpo)
-     */
+    //Força persistência de todas as séries (para encerramento limpo)
     public void persistAll() {
         lock.writeLock().lock();
         try {
@@ -222,9 +200,7 @@ public class timeSeriesManager {
         }
     }
     
-    /**
-     * Estatísticas globais do sistema
-     */
+    //Estatísticas globais do sistema
     public Map<String, Object> getSystemStats() {
         lock.readLock().lock();
         try {
@@ -233,8 +209,7 @@ public class timeSeriesManager {
             stats.put("total_usuarios", userSeries.size());
             stats.put("max_dias", maxDays);
             stats.put("max_series_memoria", maxSeriesInMemory);
-            
-            // Estatísticas de memória
+
             Map<String, Object> memStats = memoryManager.getMemoryStats();
             stats.putAll(memStats);
             
@@ -260,9 +235,7 @@ public class timeSeriesManager {
     }
     
     
-    /**
-     * Filtra eventos de múltiplos produtos num dia específico
-     */
+    //Filtra eventos de múltiplos produtos num dia específico
     public Map<String, List<Event>> getEventosFiltrados(String username, int dia, String[] produtos) {
         lock.readLock().lock();
         try {
@@ -288,16 +261,10 @@ public class timeSeriesManager {
         }
     }
 
-    /**
-     * Getter para NotificationManager
-     */
     public NotificationManager getNotificationManager() {
         return notificationManager;
     }
 
-    /**
-     * Getter para parâmetro D
-     */
     public int getD() {
         return maxDays;
     }

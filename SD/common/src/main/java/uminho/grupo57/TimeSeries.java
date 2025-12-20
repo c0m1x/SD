@@ -123,7 +123,6 @@ public class TimeSeries implements Serializable {
                     somaPrecos += eventos.stream().map(Event::getPreco).reduce(0f, Float::sum);
                     contadorEventos += eventos.size();
                     
-                    // Nota: SeriesMemoryManager gerencia automaticamente a eviction
                     // Se S séries já estiverem em memória, a mais antiga será persistida
                     
                 } catch (Exception e) {
@@ -206,8 +205,7 @@ public class TimeSeries implements Serializable {
     
     private AggregationCache getOrCalculateCache(String nomeProduto, int dia, int currentDay) {
         int produtoHash = nomeProduto.hashCode();
-        
-        // Tenta ler
+
         lock.readLock().lock();
         try {
             Map<Integer, AggregationCache> cacheProduto = aggregationCache.get(produtoHash);
@@ -220,8 +218,7 @@ public class TimeSeries implements Serializable {
         } finally {
             lock.readLock().unlock();
         }
-        
-        // Calcula
+
         lock.writeLock().lock();
         try {
             Map<Integer, AggregationCache> cacheProduto = aggregationCache.computeIfAbsent(produtoHash, k -> new HashMap<>());

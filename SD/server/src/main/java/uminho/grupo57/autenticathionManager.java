@@ -27,17 +27,12 @@ public class autenticathionManager {
         loadUsers();
     }
     
-    /**
-     * Verifica se o utilizador é administrador
-     */
+    //Verifica se o utilizador é administrador
     public boolean isAdmin(String username) {
         return ADMIN_USERNAME.equals(username);
     }
     
-    /**
-     * Regista novo utilizador e persiste
-     * @return true se registou com sucesso, false se utilizador já existe ou é admin
-     */
+    //Regista novo utilizador e persiste
     public synchronized boolean register(String username, String password) {
         if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
             return false;
@@ -55,9 +50,7 @@ public class autenticathionManager {
         return result;
     }
 
-    /**
-     * Autentica utilizador
-     */
+    // Autentica utilizador
     public boolean authenticate(String username, String password) {
         if (username == null || password == null) {
             return false;
@@ -78,9 +71,7 @@ public class autenticathionManager {
         return userCredentials.size();
     }
 
-    /**
-     * Carrega utilizadores do ficheiro
-     */
+    //Carrega utilizadores do ficheiro
     private void loadUsers() {
         File file = new File(usersFilePath);
         if (!file.exists()) {
@@ -91,7 +82,7 @@ public class autenticathionManager {
             @SuppressWarnings("unchecked")
             ConcurrentHashMap<String, String> loaded = (ConcurrentHashMap<String, String>) ois.readObject();
             
-            // Adicionar utilizadores carregados (exceto se for admin - manter a conta padrão)
+            // Adicionar utilizadores carregados (exceto se for admin)
             for (var entry : loaded.entrySet()) {
                 if (!ADMIN_USERNAME.equals(entry.getKey())) {
                     userCredentials.putIfAbsent(entry.getKey(), entry.getValue());
@@ -104,9 +95,7 @@ public class autenticathionManager {
         }
     }
 
-    /**
-     * Guarda utilizadores no ficheiro
-     */
+    //Guarda utilizadores no ficheiro
     private synchronized void saveUsers() {
         File file = new File(usersFilePath);
         file.getParentFile().mkdirs();

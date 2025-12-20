@@ -62,7 +62,6 @@ public class ClientHandler implements Runnable {
                 socket.close();
                 System.out.println("[" + socket.getRemoteSocketAddress() + "] Desconectado");
             } catch (IOException e) {
-                // ignore
             }
         }
     }

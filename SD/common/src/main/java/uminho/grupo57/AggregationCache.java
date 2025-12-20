@@ -6,7 +6,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Cache de agregações para um produto em um dia específico
- * Calcula on-demand e mantém resultados cacheados
+ * Calcula on-demand e mantém resultados em cache
  */
 public class AggregationCache implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -16,7 +16,7 @@ public class AggregationCache implements Serializable {
     private final String produto;
     private final int dia;
     
-    // Dados cacheados
+    // Dados guardados em cache
     private Integer quantidadeTotal = null;
     private Float volumeTotal = null;
     private Float precoMaximo = null;
@@ -31,7 +31,7 @@ public class AggregationCache implements Serializable {
     }
     
     /**
-     * Verifica se o cache foi calculado
+     * Verifica se a cache foi calculada
      */
     public boolean isCalculated() {
         lock.readLock().lock();
@@ -83,7 +83,7 @@ public class AggregationCache implements Serializable {
     }
     
     /**
-     * Invalida o cache
+     * Invalida a cache
      */
     public void invalidate() {
         lock.writeLock().lock();

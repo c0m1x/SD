@@ -11,11 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class NotificationManager {
     
     private final ReentrantLock lock = new ReentrantLock();
-    
-    // WAIT_SIMULTANEOUS: username -> "produto1:produto2" -> SimultaneousWait
     private final Map<String, Map<String, SimultaneousWait>> simultaneousWaits = new HashMap<>();
-    
-    // WAIT_CONSECUTIVE: username -> produto -> ConsecutiveTracker
     private final Map<String, Map<String, ConsecutiveTracker>> consecutiveTrackers = new HashMap<>();
     
     private class SimultaneousWait {
@@ -37,9 +33,7 @@ public class NotificationManager {
         boolean dayEnded = false;
     }
     
-    /**
-     * Chamado quando evento é adicionado
-     */
+    //Chamado quando evento é adicionado
     public void onEventAdded(String username, String produto) {
         lock.lock();
         try {
@@ -74,7 +68,7 @@ public class NotificationManager {
                     }
                 }
                 
-                // Resetar outros produtos (quebra consecutividade)
+                // Reset outros produtos
                 for (Map.Entry<String, ConsecutiveTracker> entry : userConsTrackers.entrySet()) {
                     if (!entry.getKey().equals(produto)) {
                         entry.getValue().currentStreak = 0;
@@ -87,9 +81,7 @@ public class NotificationManager {
         }
     }
     
-    /**
-     * Chamado ao avançar dia - notifica threads bloqueadas
-     */
+    //Chamado ao avançar dia - notifica threads bloqueadas
     public void onDayAdvance() {
         lock.lock();
         try {
@@ -119,9 +111,7 @@ public class NotificationManager {
         }
     }
     
-    /**
-     * Bloqueia até p1 E p2 vendidos no dia corrente
-     */
+    //Bloqueia até p1 E p2 vendidos no dia corrente
     public boolean waitSimultaneous(String username, String produto1, String produto2) 
             throws InterruptedException {
         lock.lock();
@@ -146,9 +136,7 @@ public class NotificationManager {
         }
     }
     
-    /**
-     * Bloqueia até n vendas consecutivas do mesmo produto
-     */
+    //Bloqueia até n vendas consecutivas do mesmo produto
     public boolean waitConsecutive(String username, String produto, int n) 
             throws InterruptedException {
         lock.lock();
@@ -158,8 +146,7 @@ public class NotificationManager {
             
             ConsecutiveTracker tracker = userTrackers.computeIfAbsent(
                 produto, k -> new ConsecutiveTracker());
-            
-            // Se já satisfeito
+
             if (tracker.currentStreak >= n) {
                 return true;
             }

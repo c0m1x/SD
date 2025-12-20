@@ -2,7 +2,7 @@ package uminho.grupo57;//nome auto explicativo
 import java.io.IOException;
 import java.util.*;
 
-
+//TODO: corrigir isto
 public class clientUI {
     private boolean authenticated = false;
     //private TimeSeriesClient client;

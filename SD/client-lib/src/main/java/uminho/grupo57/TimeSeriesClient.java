@@ -29,10 +29,8 @@ public class TimeSeriesClient implements AutoCloseable {
     public void close() throws IOException {
         if (connected) {
             try {
-                // Enviar LOGOUT antes de fechar
                 sendRequest(Protocol.LOGOUT);
             } catch (Exception e) {
-                // Ignora erro ao enviar logout
             }
             demux.close();
             connected = false;
@@ -249,8 +247,7 @@ public class TimeSeriesClient implements AutoCloseable {
             return false;
         }
     }
-    
-    // Verifica se está conectado
+
     public boolean isConnected() {
         return connected;
     }

@@ -52,7 +52,7 @@
 
         /**
          * Recebe mensagem com o tag especificado
-         * Thread fica lendo frames do socket até encontrar o seu tag
+         * Thread fica a ler frames do socket até encontrar o seu tag
          */
         public byte[] receive(int tag) throws IOException, InterruptedException
         {

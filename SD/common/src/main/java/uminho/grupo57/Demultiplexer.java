@@ -25,7 +25,7 @@ public class Demultiplexer implements AutoCloseable
      * e sincronizar threads que esperam por mensagens dessa tag
      */
     private static class TagQueue {
-        final Deque<byte[]> queue = new ArrayDeque<>();
+        final Deque<Protocol.Message> queue = new ArrayDeque<>();
         final Condition hasMessages;
 
         TagQueue(Condition condition) {
@@ -34,17 +34,17 @@ public class Demultiplexer implements AutoCloseable
     }
 
     private final TaggedConnection connection;
-    private final Lock lock = new ReentrantLock();
+    private final ReentrantLock lock = new ReentrantLock();
     private final Map<Integer, TagQueue> tagQueues = new HashMap<>();
 
     private Thread readerThread;
-    private volatile boolean closed = false;
+    private boolean closed = false;
     private IOException readerException = null;
 
-        public Demultiplexer(TaggedConnection conn)
-        {
-            this.connection = conn;
-        }
+    public Demultiplexer(TaggedConnection conn)
+    {
+        this.connection = conn;
+    }
 
     /**
      * Inicia a thread de leitura que processa mensagens recebidas
@@ -57,30 +57,25 @@ public class Demultiplexer implements AutoCloseable
 
                     lock.lock();
                     try {
-                        // Obter ou criar a fila para esta tag
-                        TagQueue tq = tagQueues.get(frame.tag);
+                        TagQueue tq = tagQueues.get(frame.tag); // Obter ou criar a queue para esta tag
                         if (tq == null) {
                             tq = new TagQueue(lock.newCondition());
                             tagQueues.put(frame.tag, tq);
                         }
-
-                        // Adicionar mensagem à fila
-                        tq.queue.addLast(frame.data);
-
-                        // Notificar threads que esperam por esta tag
+                        tq.queue.addLast(frame.data); // Adicionar mensagem à queue
                         tq.hasMessages.signalAll();
                     } finally {
                         lock.unlock();
                     }
                 }
             } catch (IOException e) {
-                // Guardar exceção para propagar às threads que esperam
-                lock.lock();
+                lock.lock(); // Guardar exceção para passar às threads que bloqueadas
                 try {
-                    if (!closed) {
+                    if (!closed)
+                    {
                         readerException = e;
-                        // Notificar todas as threads à espera
-                        for (TagQueue tq : tagQueues.values()) {
+                        for (TagQueue tq : tagQueues.values())
+                        {
                             tq.hasMessages.signalAll();
                         }
                     }
@@ -95,7 +90,7 @@ public class Demultiplexer implements AutoCloseable
     /**
      * Envia uma mensagem com tag e dados
      */
-    public void send(int tag, byte[] data) throws IOException
+    public void send(int tag, Protocol.Message data) throws IOException
     {
         connection.send(tag, data);
     }
@@ -104,41 +99,30 @@ public class Demultiplexer implements AutoCloseable
      * Recebe uma mensagem com a tag especificada.
      * Bloqueia até chegar uma mensagem com essa tag.
      */
-    public byte[] receive(int tag) throws IOException, InterruptedException
+    public Protocol.Message receive(int tag) throws IOException, InterruptedException
     {
         lock.lock();
-        try {
-            // Obter ou criar a fila para esta tag
-            TagQueue tq = tagQueues.get(tag);
+        try{
+            TagQueue tq = tagQueues.get(tag); // Obter ou criar a queue para esta tag
             if (tq == null) {
                 tq = new TagQueue(lock.newCondition());
                 tagQueues.put(tag, tq);
             }
 
-            // Esperar até haver mensagens na fila
-            while (tq.queue.isEmpty()) {
-                // Verificar se houve erro na thread de leitura
-                if (readerException != null) {
-                    throw new IOException("Reader thread failed", readerException);
-                }
-                if (closed) {
-                    throw new IOException("Demultiplexer is closed");
-                }
+            while(tq.queue.isEmpty()) // Esperar até haver mensagens na queue, verifica antes e depois de acordar a thread se existe algum erro
+            {
+                if(readerException != null)
+                    throw new IOException("Thread de leitura falhou", readerException);
+                if(closed)
+                    throw new IOException("Demultiplexer está fechado");
 
                 tq.hasMessages.await();
-
-                // Revalidar após acordar
-                if (readerException != null) {
-                    throw new IOException("Reader thread failed", readerException);
-                }
-                if (closed) {
-                    throw new IOException("Demultiplexer is closed");
-                }
+                if(readerException != null)
+                    throw new IOException("Thread de leitura falhou", readerException);
+                if(closed)
+                    throw new IOException("Demultiplexer está fechado");
             }
-
-            // Remover e devolver a primeira mensagem da fila
             return tq.queue.removeFirst();
-
         } finally {
             lock.unlock();
         }
@@ -148,31 +132,26 @@ public class Demultiplexer implements AutoCloseable
      * Fecha o demultiplexer e a conexão subjacente
      */
     @Override
-    public void close() throws IOException
-    {
+    public void close() throws IOException, InterruptedException {
         lock.lock();
         try {
-            if (closed)
+            if(closed)
                 return;
             closed = true;
 
-            // Notificar todas as threads à espera
-            for (TagQueue tq : tagQueues.values()) {
+            for (TagQueue tq : tagQueues.values()) // Notificar todas as threads à espera
                 tq.hasMessages.signalAll();
-            }
         } finally {
             lock.unlock();
         }
-
-        // Fechar a conexão (isto fará a thread de leitura terminar)
         connection.close();
 
-        // Esperar que a thread de leitura termine
-        if (readerThread != null) {
+        if (readerThread != null)  // Esperar que a thread de leitura termine
+        {
             try {
                 readerThread.join();
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                Thread.currentThread().join();
             }
         }
     }

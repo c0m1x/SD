@@ -6,11 +6,12 @@ import java.io.IOException;
 /**
  * Interface de linha de comando para gestão de séries temporais de eventos
  */
-public class Main {
+public class Main
+{
     private static TimeSeriesClient client = new TimeSeriesClient();
     private static Scanner scanner = new Scanner(System.in);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         System.out.println("╔═══════════════════════════════════════╗");
         System.out.println("║   Sistema de Gestão de Compras        ║");
         System.out.println("╚═══════════════════════════════════════╝\n");
@@ -51,9 +52,20 @@ public class Main {
                         consultarProduto();
                         break;
                     case 3:
+                        consultarAgregacaoRange();
+                    case 4:
                         listarProdutos();
                         break;
-                    case 4:  
+                    case 5:
+                        filtrarEventos();
+                        break;
+                    case 6:
+                        aguardVendaConsecutiva();
+                        break;
+                    case 7:
+                        aguardarVendaSimultaneas();
+                        break;
+                    case 8:
                         avancarDia();
                         break;
                     case 0:
@@ -66,7 +78,7 @@ public class Main {
             } catch (IOException | InterruptedException e) {
                 System.err.println("Erro de comunicação: " + e.getMessage());
                 if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
+                    Thread.currentThread().join();
                 }
             }
             
@@ -84,7 +96,7 @@ public class Main {
            scanner.close();
        }
 
-        private static boolean autenticar() {
+        private static boolean autenticar() throws InterruptedException {
         while (true) {
             System.out.println("\n┌─────────────────────────────┐");
             System.out.println("│       AUTENTICAÇÃO          │");
@@ -135,24 +147,27 @@ public class Main {
                 }
             } catch (IOException | InterruptedException e) {
                 System.err.println("Erro de comunicação: " + e.getMessage());
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
+                if (e instanceof InterruptedException)
+                    Thread.currentThread().join();
                 return false;
             }
         }
     }
     
     private static void mostrarMenu() {
-        System.out.println("\n┌─────────────────────────────┐");
-        System.out.println("│         MENU PRINCIPAL      │");
-        System.out.println("├─────────────────────────────┤");
-        System.out.println("│ 1. Registar Compra          │");
-        System.out.println("│ 2. Consultar Estatísticas   │");
-        System.out.println("│ 3. Listar Produtos          │");
-        System.out.println("│ 4. Avançar Dia              │");  
-        System.out.println("│ 0. Sair                     │");
-        System.out.println("└─────────────────────────────┘");
+        System.out.println("\n┌─────────────────────────────────┐");
+        System.out.println("│         MENU PRINCIPAL          │");
+        System.out.println("├─────────────────────────────────┤");
+        System.out.println("│ 1. Registar Compra              │");
+        System.out.println("│ 2. Consultar Estatísticas       │");
+        System.out.println("│ 3. Consultar Agregação          │");
+        System.out.println("│ 4. Listar Produtos              │");
+        System.out.println("│ 5. Filtrar Eventos              │");
+        System.out.println("│ 6. Aguardar Vendas Consecutivas │");
+        System.out.println("│ 7. Aguardar Vendas Simultaneas  │");
+        System.out.println("│ 8. Avançar Dia                  │");
+        System.out.println("│ 0. Sair                         │");
+        System.out.println("└─────────────────────────────────┘");
         System.out.print("Opção: ");
     }
 
@@ -202,10 +217,9 @@ public class Main {
             return;
         }
         
-        if (client.registarCompra(produto, quantidade, preco)) {
-            System.out.println("\nCompra registada com sucesso!");
-            System.out.printf("  %s - %d unidades - %.2f€%n", produto, quantidade, preco);
-        }
+        client.handleRegistarCompra(produto, quantidade, preco);
+        System.out.println("\nCompra registada com sucesso!");
+        System.out.printf("  %s - %d unidades - %.2f€%n", produto, quantidade, preco);
     }
 
     private static void consultarProduto() throws IOException, InterruptedException {
@@ -213,13 +227,106 @@ public class Main {
         System.out.print("Nome do produto: ");
         String produto = scanner.nextLine().trim();
         
-        client.consultarProduto(produto);
+        client.handleConsultarProduto(produto);
     }
 
     private static void listarProdutos() throws IOException, InterruptedException {
-        client.listarProdutos();
+        client.handleListarProdutos();
     }
-    
+
+    private static void consultarAgregacaoRange() throws IOException, InterruptedException
+    {
+        System.out.println("\n═══ Consultar Agregação nos últimos dias de um Produto ═══");
+        System.out.print("Nome do produto: ");
+        String produto = scanner.nextLine().trim();
+        int intervalo;
+        try{
+            System.out.print("Número de dias anteriores: ");
+            intervalo = Integer.parseInt(scanner.nextLine());
+            if(intervalo < 0)
+            {
+                System.out.println("Intervalo inválido!");
+                return;
+            }
+        }catch(NumberFormatException e){
+            System.out.println("Intervalo inválido!");
+            return;
+        }
+        client.handleConsultarAgregacaoRange(produto, intervalo);
+    }
+
+    private static void filtrarEventos() throws IOException, InterruptedException
+    {
+        System.out.println("\n═══ Filtrar Eventos ═══");
+        int prodNum, intervalo;
+        String[] products;
+        try{
+            System.out.print("Número de produtos: ");
+            prodNum = Integer.parseInt(scanner.nextLine());
+            if(prodNum <= 0)
+            {
+                System.out.println("Número de produtos inválido!");
+                return;
+            }
+            products = new String[prodNum];
+        }catch(NumberFormatException e){
+            System.out.println("Número de produtos inválido!");
+            return;
+        }
+
+        for(int i=0; i<prodNum; i++)
+        {
+            System.out.println("Nome do Produto " + (i+1) + ": ");
+            products[i] = scanner.nextLine().trim();
+        }
+
+        try{
+            System.out.print("Número de dias anteriores: ");
+            intervalo = Integer.parseInt(scanner.nextLine());
+            if(intervalo < 0)
+            {
+                System.out.println("Intervalo inválido!");
+                return;
+            }
+        }catch(NumberFormatException e){
+            System.out.println("Intervalo inválido!");
+            return;
+        }
+        System.out.print("Número de Produtos: ");
+        client.handleFiltrarEventos(intervalo, products);
+    }
+
+    private static void aguardarVendaSimultaneas() throws IOException, InterruptedException
+    {
+        System.out.println("\n═══ Aguardar Vendas Simultaneas ═══");
+        System.out.print("Nome do Produto 1: ");
+        String prod1 = scanner.nextLine().trim();
+        System.out.print("Nome do Produto 2: ");
+        String prod2 = scanner.nextLine().trim();
+
+        client.handleAguardarVendasSimultaneas(prod1, prod2);
+    }
+
+    private static void aguardVendaConsecutiva() throws IOException, InterruptedException {
+        System.out.println("\n═══ Aguardar Vendas Consecutivas ═══");
+        System.out.print("Nome do Produto: ");
+        String prod = scanner.nextLine().trim();
+        int numeroVendas;
+        try{
+            System.out.print("Número de venas (maior que 0): ");
+            numeroVendas = Integer.parseInt(scanner.nextLine());
+            if(numeroVendas <= 0)
+            {
+                System.out.println("Número de vendas inválido!");
+                return;
+            }
+        }catch(NumberFormatException e){
+            System.out.println("Número de vendas inválido!");
+            return;
+        }
+        client.handleAguardarVendasConsecutivas(prod, numeroVendas);
+    }
+
     private static void avancarDia() throws IOException, InterruptedException {
         System.out.println("\n═══ Avançar Dia ═══");
         System.out.print("Deseja avançar para o dia seguinte? (s/n): ");

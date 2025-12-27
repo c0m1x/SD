@@ -14,8 +14,8 @@ public class TaggedConnection implements AutoCloseable
     public static class Frame
     {
         public final int tag;
-        public final byte[] data;
-        public Frame(int tag, byte[] data)
+        public final Protocol.Message data;
+        public Frame(int tag, Protocol.Message data)
         {
             this.tag = tag; this.data = data;
         }
@@ -27,19 +27,17 @@ public class TaggedConnection implements AutoCloseable
         this.input = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
     }
 
-    public void send(int tag, byte[] data) throws IOException
+    public void send(int tag, Protocol.Message data) throws IOException
     {
         ls.lock();
         try
         {
-            output.writeInt(4 + data.length);
             output.writeInt(tag);
-            output.write(data);
+            Protocol.sendMessage(output, data);
             output.flush();
         }finally{
             ls.unlock();
         }
-
     }
 
     public void send(Frame frame) throws IOException
@@ -52,10 +50,8 @@ public class TaggedConnection implements AutoCloseable
         lr.lock();
         try
         {
-            int tam = input.readInt();
             int tag = input.readInt();
-            byte[] mensagem = new byte[tam - 4];
-            input.readFully(mensagem);
+            Protocol.Message mensagem = Protocol.receiveMessage(input);
             return new Frame(tag, mensagem);
         }finally{
             lr.unlock();

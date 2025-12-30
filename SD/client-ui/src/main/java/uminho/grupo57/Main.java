@@ -125,13 +125,12 @@ public class Main
             String password = scanner.nextLine().trim();
 
             try {
-                if (opcao == 2) {
-                    // Tentar registar
-                    if (client.register(username, password)) {
-                        // Registo bem-sucedido, agora fazer login
-                        if (client.login(username, password)) {
+                if(opcao == 2) // Tentar registar
+                {
+                    if(client.register(username, password))
+                    {
+                        if(client.login(username, password))
                             return true;
-                        }
                     }
                     // Se falhou, continuar o loop para tentar novamente
                     System.out.println("\nPressione ENTER para tentar novamente...");
@@ -222,7 +221,7 @@ public class Main
         System.out.printf("  %s - %d unidades - %.2f€%n", produto, quantidade, preco);
     }
 
-    private static void consultarProduto() throws IOException, InterruptedException {
+    public static void consultarProduto() throws IOException, InterruptedException {
         System.out.println("\n═══ Consultar Estatísticas ═══");
         System.out.print("Nome do produto: ");
         String produto = scanner.nextLine().trim();
@@ -230,7 +229,7 @@ public class Main
         client.handleConsultarProduto(produto);
     }
 
-    private static void listarProdutos() throws IOException, InterruptedException {
+    public static void listarProdutos() throws IOException, InterruptedException {
         client.handleListarProdutos();
     }
 
@@ -332,8 +331,8 @@ public class Main
         System.out.print("Deseja avançar para o dia seguinte? (s/n): ");
         String resposta = scanner.nextLine().trim().toLowerCase();
         
-        if (resposta.equals("s") || resposta.equals("sim")) {
-            client.nextDay();
+        if(resposta.equals("s") || resposta.equals("sim")) {
+            client.handleNextDay();
         } else {
             System.out.println("Operação cancelada.");
         }

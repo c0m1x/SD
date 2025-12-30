@@ -33,10 +33,9 @@ public class TimeSeriesClient implements AutoCloseable {
     {
         if(connected)
         {
-            try
-            {
+            try{
                 sendRequest(Protocol.LOGOUT);
-            } catch (Exception e) {}
+            }catch (Exception e) {}
             demux.close();
             connected = false;
             System.out.println("Desconectado");
@@ -76,7 +75,7 @@ public class TimeSeriesClient implements AutoCloseable {
     }
 
     // Regista um novo evento de compra
-    public boolean registarCompra(String produto, int quantidade, float preco) throws IOException, InterruptedException
+    private boolean registarCompra(String produto, int quantidade, float preco) throws IOException, InterruptedException
     {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.ADD_EVENT,
@@ -93,7 +92,7 @@ public class TimeSeriesClient implements AutoCloseable {
     }
 
     // Consulta estatísticas de um produto
-    public void consultarProduto(String produto) throws IOException, InterruptedException
+    private void consultarProduto(String produto) throws IOException, InterruptedException
     {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.QUERY_PRODUCT, produto);
@@ -125,7 +124,7 @@ public class TimeSeriesClient implements AutoCloseable {
     }
 
     // Consulta agregação de um produto nos últimos N dias
-    public void consultarAgregacaoRange(String produto, int numeroDias) throws IOException, InterruptedException
+    private void consultarAgregacaoRange(String produto, int numeroDias) throws IOException, InterruptedException
     {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.AGGREGATE_RANGE, produto, String.valueOf(numeroDias));
@@ -156,7 +155,7 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    public void filtrarEventos(int dia, String[] produtos) throws IOException, InterruptedException
+    private void filtrarEventos(int dia, String[] produtos) throws IOException, InterruptedException
     {
         checkConnection();
         String[] args = new String[produtos.length + 1];
@@ -202,7 +201,7 @@ public class TimeSeriesClient implements AutoCloseable {
     }
 
 
-    public boolean aguardarVendasSimultaneas(String produto1, String produto2) throws IOException, InterruptedException
+    private boolean aguardarVendasSimultaneas(String produto1, String produto2) throws IOException, InterruptedException
     {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.WAIT_SIMULTANEOUS, produto1, produto2);
@@ -221,7 +220,7 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    public String aguardarVendasConsecutivas(String produto, int n) throws IOException, InterruptedException
+    private String aguardarVendasConsecutivas(String produto, int n) throws IOException, InterruptedException
     {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.WAIT_CONSECUTIVE, produto, String.valueOf(n));
@@ -244,7 +243,7 @@ public class TimeSeriesClient implements AutoCloseable {
     }
 
 
-    public void listarProdutos() throws IOException, InterruptedException
+    private void listarProdutos() throws IOException, InterruptedException
     {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.LIST_PRODUCTS);
@@ -266,7 +265,7 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    public boolean nextDay() throws IOException, InterruptedException
+    private boolean nextDay() throws IOException, InterruptedException
     {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.NEXT_DAY);
@@ -280,7 +279,7 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    public boolean isConnected()
+    private boolean isConnected()
     {
         return connected;
     }
@@ -493,16 +492,6 @@ public class TimeSeriesClient implements AutoCloseable {
                 System.err.println("Erro ao avançar dia: " + e.getMessage());
             }
         }
-    }
-
-    public void handleRegister(String username, String password)
-    {
-        new RegisterHandler(username, password).start();
-    }
-
-    public void handleLogin(String username, String password)
-    {
-        new LoginHandler(username, password).start();
     }
 
     public void handleRegistarCompra(String produto, int quantidade, float preco)

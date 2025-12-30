@@ -3,6 +3,7 @@ package uminho.grupo57.clientHandling;
 import uminho.grupo57.ThreadPool;
 import uminho.grupo57.Protocol;
 import uminho.grupo57.TaggedConnection;
+import uminho.grupo57.storage.SeriesPersistence;
 
 import java.io.*;
 import java.net.Socket;
@@ -22,16 +23,20 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private final AutenticathionManager authManager;
     private final TimeSeriesManager tsManager;
+    private final SeriesPersistence persistence;
     private final ThreadPool threadPool;
+    private final ThreadPool diskWriters;
     private ReentrantLock lock = new ReentrantLock();
     private String currentUser = null;
     
-    public ClientHandler(Socket socket, AutenticathionManager authManager, TimeSeriesManager tsManager, ThreadPool threadPool)
+    public ClientHandler(Socket socket, AutenticathionManager authManager, TimeSeriesManager tsManager, ThreadPool threadPool, ThreadPool diskWriters, SeriesPersistence persistence)
     {
         this.socket = socket;
         this.authManager = authManager;
         this.tsManager = tsManager;
         this.threadPool = threadPool;
+        this.diskWriters = diskWriters;
+        this.persistence = persistence;
     }
 
     private void changeCurrentUser(String user)
@@ -102,7 +107,7 @@ public class ClientHandler implements Runnable {
 
         public void run()
         {
-            Skeleton skeleton = new Skeleton(authManager, tsManager);
+            Skeleton skeleton = new Skeleton(authManager, tsManager, diskWriters);
             Protocol.Message reply;
 
             try{

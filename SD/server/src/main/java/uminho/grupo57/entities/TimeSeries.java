@@ -78,37 +78,6 @@ public class TimeSeries
         }
     }
 
-    public void writeTimeSeries(DataOutputStream out) throws IOException
-    {
-        out.writeInt(dia);
-        out.writeInt(eventosPorProduto.size());
-        for(Map.Entry<Integer, List<Event>> entry : eventosPorProduto.entrySet())
-        {
-            out.writeInt(entry.getKey());
-            out.writeInt(entry.getValue().size());
-            for(Event evento: entry.getValue())
-                evento.writeEvento(out);
-        }
-    }
-
-
-    public static TimeSeries readTimeSeries(DataInputStream in) throws IOException
-    {
-        int dia = in.readInt();
-        int numProdutos = in.readInt();
-        Map<Integer, List<Event>> eventos = new HashMap<>();
-        for(int i=0; i<numProdutos; i++)
-        {
-            int hashProduto = in.readInt();
-            int tamanhoListaEventos = in.readInt();
-            List<Event> eventosProduto = new ArrayList<>();
-            for(int j=0; j<tamanhoListaEventos; j++)
-                eventosProduto.add(Event.readEvento(in));
-            eventos.put(hashProduto, eventosProduto);
-        }
-        return new TimeSeries(dia, eventos);
-    }
-
     public int getDia()
     {
         return dia;

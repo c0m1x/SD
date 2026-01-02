@@ -1,16 +1,20 @@
 package uminho.grupo57.clientHandling;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
 import uminho.grupo57.Protocol;
 import uminho.grupo57.ThreadPool;
 import uminho.grupo57.entities.Event;
 import uminho.grupo57.storage.AggregationCache;
 
-import java.io.IOException;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.List;
-
+/**
+ * Implementa a lógica de negócio do servidor (procedimentos expostos via protocolo).
+ * <p>Este "skeleton" é usado pelo `ClientHandler` para despachar comandos.</p>
+ */
 public class Skeleton
 {
     private final AutenticathionManager authManager;
@@ -24,6 +28,9 @@ public class Skeleton
         this.diskWriters = diskWriters;
     }
 
+    /**
+     * Regista novo utilizador.
+     */
     public Protocol.Message register(String username, String password)
     {
         if(username.isEmpty() || password.isEmpty())
@@ -37,6 +44,9 @@ public class Skeleton
         return Protocol.error("Utilizador já existe");
     }
 
+    /**
+     * Autentica utilizador.
+     */
     public Protocol.Message login(String username, String password)
     {
         if(authManager.authenticate(username, password))
@@ -49,6 +59,9 @@ public class Skeleton
 
 
 
+    /**
+     * Adiciona evento (valida e agenda persistência em disco).
+     */
     public Protocol.Message addEvent(String user, String produto, int quantidade, float preco) throws InterruptedException
     {
         if(user == null)
@@ -69,6 +82,9 @@ public class Skeleton
         return Protocol.ok("Evento registado");
     }
 
+    /**
+     * Consulta estatísticas agregadas de um produto no dia atual.
+     */
     public Protocol.Message queryProduct(String user, String produto)
     {
         if(user == null)
@@ -91,6 +107,9 @@ public class Skeleton
         return Protocol.ok(res);
     }
 
+    /**
+     * Lista produtos do dia atual.
+     */
     public Protocol.Message listProducts(String user)
     {
         if(user == null)
@@ -100,6 +119,9 @@ public class Skeleton
         return Protocol.ok(String.join(",", produtos));
     }
 
+    /**
+     * Avança para o próximo dia (apenas admin).
+     */
     public Protocol.Message nextDay(String user)
     {
         if(user == null)
@@ -113,6 +135,9 @@ public class Skeleton
     }
 
 
+    /**
+     * Calcula agregação para um intervalo de dias.
+     */
     public Protocol.Message aggregateRange(String user, String produto, int dias)
     {
         if(user == null)
@@ -137,6 +162,9 @@ public class Skeleton
 
 
 
+    /**
+     * Filtra eventos por produtos num dia específico.
+     */
     public Protocol.Message filterEvents(String user, int dia, Set<String> produtos) throws IOException
     {
         if(user == null)
@@ -176,6 +204,9 @@ public class Skeleton
 
 
 
+    /**
+     * Waits até dois produtos serem vendidos no mesmo dia.
+     */
     public Protocol.Message waitSimultaneous(String user, String p1, String p2) throws InterruptedException
     {
         if(user == null)
@@ -185,6 +216,9 @@ public class Skeleton
         return Protocol.ok(Boolean.toString(ok));
     }
 
+    /**
+     * Waits até N vendas consecutivas do mesmo produto.
+     */
     public Protocol.Message waitConsecutive(String user, String produto, int n) throws InterruptedException
     {
         if(user == null)

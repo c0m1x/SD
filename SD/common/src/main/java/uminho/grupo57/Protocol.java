@@ -51,8 +51,8 @@ import java.io.IOException;
  * @author Grupo 57
  * @version 1.0
  * @since 2025
- * @see TaggedConnection
- * @see Demultiplexer
+ * @see uminho.grupo57.TaggedConnection
+ * @see uminho.grupo57.Demultiplexer
  */
 public class Protocol {
 
@@ -125,7 +125,7 @@ public class Protocol {
      * <b>Nota:</b> Requer autenticação prévia via {@link #LOGIN}.
      * </p>
      * 
-     * @see Event
+     * @see {@link uminho.grupo57.entities.Event}
      */
     public static final byte ADD_EVENT = 3;
     
@@ -147,8 +147,8 @@ public class Protocol {
      * </ul>
      * </p>
      * 
-     * @see #AGGREGATE_RANGE
-     * @see AggregationCache
+    * @see #AGGREGATE_RANGE
+    * @see {@link uminho.grupo57.storage.AggregationCache}
      */
     public static final byte QUERY_PRODUCT = 4;
     
@@ -194,8 +194,8 @@ public class Protocol {
      * <b>Nota:</b> Apenas o utilizador "admin" pode executar este comando.
      * </p>
      * 
-     * @see TimeSeriesManager#nextDay()
-     * @see NotificationManager#onDayAdvance()
+    * @see {@link uminho.grupo57.clientHandling.TimeSeriesManager#nextDay()}
+    * @see {@link uminho.grupo57.clientHandling.NotificationManager#onDayAdvance()}
      */
     public static final byte NEXT_DAY = 6;
     
@@ -225,8 +225,8 @@ public class Protocol {
      * </ol>
      * </p>
      * <p>
-     * <b>Comportamento:</b> Agrega eventos do dia atual até {@code (diaAtual - numeroDias)}.
-     * Usa sistema de cache para otimização ({@link AggregationCache}).
+    * <b>Comportamento:</b> Agrega eventos do dia atual até {@code (diaAtual - numeroDias)}.
+     * Usa sistema de cache para otimização ({@link uminho.grupo57.storage.AggregationCache}).
      * </p>
      * <p>
      * <b>Respostas possíveis:</b>
@@ -237,8 +237,8 @@ public class Protocol {
      * </ul>
      * </p>
      * 
-     * @see #QUERY_PRODUCT
-     * @see AggregationCache
+    * @see #QUERY_PRODUCT
+    * @see {@link uminho.grupo57.storage.AggregationCache}
      */
     public static final byte AGGREGATE_RANGE = 8;
     
@@ -271,7 +271,7 @@ public class Protocol {
      * A serialização deve ser eficiente para evitar overhead de rede.
      * </p>
      * 
-     * @see SerializationEfficiencyTest
+    * <!-- Referência a testes removida: SerializationEfficiencyTest (não faz parte da API pública) -->
      */
     public static final byte FILTER_EVENTS = 9;
     
@@ -301,7 +301,7 @@ public class Protocol {
      * </ul>
      * </p>
      * 
-     * @see NotificationManager#waitSimultaneous(String, String, String)
+    * @see {@link uminho.grupo57.clientHandling.NotificationManager#waitSimultaneous(String, String, String)}
      * @see #WAIT_CONSECUTIVE
      */
     public static final byte WAIT_SIMULTANEOUS = 10;
@@ -333,7 +333,7 @@ public class Protocol {
      * </ul>
      * </p>
      * 
-     * @see NotificationManager#waitConsecutive(String, String, int)
+    * @see {@link uminho.grupo57.clientHandling.NotificationManager#waitConsecutive(String, String, int)}
      * @see #WAIT_SIMULTANEOUS
      */
     public static final byte WAIT_CONSECUTIVE = 11;

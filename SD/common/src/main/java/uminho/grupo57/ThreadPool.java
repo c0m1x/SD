@@ -5,6 +5,13 @@ import java.util.Queue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Simples thread pool fixo.
+ *
+ * Fornece enfileiramento de tarefas e um conjunto fixo de runners que
+ * consomem e executam as tarefas. Suporta encerramento ordenado via
+ * {@link #shutdown()}.
+ */
 public class ThreadPool
 {
     private final ReentrantLock lock = new ReentrantLock();
@@ -56,6 +63,14 @@ public class ThreadPool
     }
 
 
+    /**
+     * Submete uma tarefa ao thread pool.
+     * <p>Bloqueia se o pool estiver a encerrar e lança {@link IllegalStateException}.</p>
+     *
+     * @param task Tarefa a executar
+     * @throws InterruptedException Se a thread atual for interrompida enquanto aguarda
+     * @throws IllegalStateException Se o thread pool estiver a fechar
+     */
     public void submitTask(Runnable task) throws InterruptedException
     {
         lock.lock();
@@ -74,6 +89,10 @@ public class ThreadPool
     }
 
 
+    /**
+     * Inicia o encerramento ordenado do thread pool.
+     * <p>Notifica todas as threads de runner para terminarem após esvaziar a fila.</p>
+     */
     public void shutdown()
     {
         lock.lock();

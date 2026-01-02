@@ -1,13 +1,16 @@
 package uminho.grupo57.clientHandling;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
+
 import uminho.grupo57.entities.Event;
 import uminho.grupo57.storage.AggregationCache;
 import uminho.grupo57.storage.SeriesMemoryManager;
 import uminho.grupo57.storage.SeriesPersistence;
-
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Gestor thread-safe de séries temporais por utilizador
@@ -52,7 +55,12 @@ public class TimeSeriesManager {
 
 
     /**
-     * Adiciona evento ao dia corrente
+     * Adiciona evento ao dia corrente e dispara notificações.
+     *
+     * @param nomeProduto Nome do produto
+     * @param quantidade Quantidade
+     * @param preco Preço unitário
+     * @return Evento criado
      */
     public Event addEvent(String nomeProduto, int quantidade, float preco)
     {
@@ -138,16 +146,37 @@ public class TimeSeriesManager {
         }
     }
 
+    /**
+     * Persiste um evento delegando para o gestor de memória/persistência.
+     *
+     * @param evento Evento a persistir
+     * @param nomeProduto Nome do produto associado
+     * @throws IOException Em caso de erro de I/O ao gravar
+     */
     public void saveEvent(Event evento, String nomeProduto) throws IOException
     {
         memoryManager.saveEvent(evento, nomeProduto, getCurrentDay());
     }
 
+    /**
+     * Retorna o gestor de notificações associado para registar waits/notify.
+     *
+     * @return instância de {@link NotificationManager}
+     */
     public NotificationManager getNotificationManager()
     {
         return notificationManager;
     }
 
+    /**
+     * Retorna um mapa produto->eventos filtrado pelos produtos fornecidos
+     * para o dia especificado.
+     *
+     * @param products Conjunto de nomes de produtos a filtrar
+     * @param dia Dia para o qual filtrar (número de dias atrás)
+     * @return Mapa produto -> lista de eventos
+     * @throws IOException Em caso de erro ao ler dados do disco
+     */
     public Map<String, List<Event>> getFilteredProducts(Set<String> products, int dia) throws IOException
     {
         try{
@@ -159,7 +188,11 @@ public class TimeSeriesManager {
         }
     }
 
-
+    /**
+     * Persiste o dia atual para disco (usado no shutdown do servidor).
+     *
+     * @throws IOException Em caso de erro ao gravar
+     */
     public void shutdownPersist() throws IOException
     {
         memoryManager.saveCurrentDay(getCurrentDay());

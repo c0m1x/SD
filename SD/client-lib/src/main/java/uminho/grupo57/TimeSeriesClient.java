@@ -816,43 +816,5 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    public void handleRegistarCompra(String produto, int quantidade, float preco)
-    {
-        new RegistarCompraHandler(produto, quantidade, preco).start();
-    }
-
-    public void handleConsultarProduto(String produto)
-    {
-        new ConsultarProdutoHandler(produto).start();
-    }
-
-    public void handleConsultarAgregacaoRange(String produto, int numeroDias)
-    {
-        new ConsultarAgregacaoRangeHandler(produto, numeroDias).start();
-    }
-
-    public void handleFiltrarEventos(int dia, String[] produtos)
-    {
-        new FiltrarEventosHandler(dia, produtos).start();
-    }
-
-    public void handleAguardarVendasSimultaneas(String produto1, String produto2)
-    {
-        new AguardarVendasSimultaneasHandler(produto1, produto2).start();
-    }
-
-    public void handleAguardarVendasConsecutivas(String produto, int n)
-    {
-        new AguardarVendasConsecutivasHandler(produto, n).start();
-    }
-
-    public void handleListarProdutos()
-    {
-        new ListarProdutosHandler().start();
-    }
-
-    public void handleNextDay()
-    {
-        new NextDayHandler().start();
-    }
+    
 }

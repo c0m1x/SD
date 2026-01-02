@@ -1,12 +1,18 @@
 package uminho.grupo57.clientHandling;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Gere notificações bloqueantes para condições de vendas
- * Thread-safe com Condition variables
+ * Gere notificações bloqueantes para condições de vendas.
+ * <p>Fornece wait/notify para duas condições: vendas simultâneas e vendas consecutivas.</p>
+ * Thread-safe usando {@link ReentrantLock} e {@link java.util.concurrent.locks.Condition}.
  */
 public class NotificationManager
 {
@@ -35,7 +41,12 @@ public class NotificationManager
         boolean dayEnded = false;
     }
 
-    //Chamado quando evento é adicionado
+    /**
+     * Deve ser chamado quando um evento de venda for adicionado.
+     * Desperta waits relevantes (simultâneo/consecutivo).
+     *
+     * @param produto Nome do produto vendido
+     */
     public void onEventAdded(String produto)
     {
         lock.lock();
@@ -77,6 +88,9 @@ public class NotificationManager
         }
     }
 
+    /**
+     * Notifica que o dia avançou, acordando e limpando waits pendentes.
+     */
     public void onDayAdvance()
     {
         lock.lock();
@@ -104,7 +118,15 @@ public class NotificationManager
         }
     }
 
-    //Bloqueia até p1 E p2 vendidos no dia corrente
+    /**
+     * Bloqueia até que ambos os produtos tenham sido vendidos no dia corrente
+     * ou até o dia avançar.
+     *
+     * @param produto1 Primeiro produto
+     * @param produto2 Segundo produto
+     * @return {@code true} se a condição foi satisfeita, {@code false} se o dia acabou
+     * @throws InterruptedException Se a thread for interrompida enquanto espera
+     */
     public boolean waitSimultaneous(String produto1, String produto2) throws InterruptedException
     {
         lock.lock();
@@ -125,7 +147,15 @@ public class NotificationManager
         }
     }
 
-    //Bloqueia até n vendas consecutivas do mesmo produto
+    /**
+     * Bloqueia até que um produto tenha sido vendido N vezes consecutivas
+     * ou até o dia avançar.
+     *
+     * @param produto Nome do produto
+     * @param n Número de vendas consecutivas a aguardar
+     * @return {@code true} se a condição foi satisfeita, {@code false} se o dia acabou
+     * @throws InterruptedException Se a thread for interrompida enquanto espera
+     */
     public boolean waitConsecutive(String produto, int n) throws InterruptedException
     {
         lock.lock();

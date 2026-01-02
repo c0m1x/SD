@@ -1,12 +1,14 @@
 package uminho.grupo57;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
+
 import uminho.grupo57.clientHandling.AutenticathionManager;
 import uminho.grupo57.clientHandling.ClientHandler;
 import uminho.grupo57.clientHandling.TimeSeriesManager;
 import uminho.grupo57.storage.SeriesPersistence;
-
-import java.io.*;
-import java.net.*;
 
 /**
  * Servidor multi-threaded para gestão de séries temporais
@@ -39,6 +41,13 @@ public class Server
         this.serverSocket = new ServerSocket(port);
     }
 
+    /**
+     * Inicia o loop de aceitação de clientes e processa pedidos.
+     *
+     * @param numThreads Número de threads de execução para pedidos (informativo)
+     * @param directory Diretório de persistência (informativo)
+     * @throws IOException Se ocorrer erro grave no socket de escuta
+     */
     public void start(int numThreads, String directory) throws IOException
     {
 
@@ -73,6 +82,12 @@ public class Server
     }
 
 
+    /**
+     * Detém o servidor, fecha o socket e inicia limpeza de recursos.
+     * <p>Idempotente: pode ser chamado várias vezes sem efeito adicional.</p>
+     *
+     * @throws IOException Se ocorrer erro ao fechar o socket
+     */
     public void stop() throws IOException
     {
         if(!isRunning)

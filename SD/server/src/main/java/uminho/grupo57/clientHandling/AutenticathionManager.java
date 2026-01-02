@@ -1,13 +1,21 @@
 package uminho.grupo57.clientHandling;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Gestor de autenticação thread-safe com persistência
- * Conta admin pré-definida: admin/1234
+ * Gestor de autenticação thread-safe com persistência simples em ficheiro.
+ * <p>Fornece registo, autenticação e persistência de credenciais. Conta
+ * administrativa padrão: `admin/1234`.</p>
  */
 public class AutenticathionManager {
     private HashMap<String, String> userCredentials = new HashMap<>();
@@ -26,10 +34,18 @@ public class AutenticathionManager {
         }
     }
 
+    /**
+     * Cria gestor usando ficheiro por defeito `data/users.dat`.
+     */
     public AutenticathionManager() {
         this("data/users.dat");
     }
 
+    /**
+     * Cria gestor com ficheiro de utilizadores especificado.
+     *
+     * @param usersFilePath Caminho para ficheiro de credenciais
+     */
     public AutenticathionManager(String usersFilePath)
     {
         this.usersFilePath = usersFilePath;
@@ -37,13 +53,24 @@ public class AutenticathionManager {
         loadUsers();
     }
     
-    //Verifica se o utilizador é administrador
+    /**
+     * Verifica se o username corresponde ao administrador.
+     *
+     * @param username Nome de utilizador
+     * @return {@code true} se for admin
+     */
     public boolean isAdmin(String username)
     {
         return ADMIN_USERNAME.equals(username);
     }
     
-    //Regista novo utilizador e persiste
+    /**
+     * Regista novo utilizador e persiste as credenciais.
+     *
+     * @param username Nome do utilizador (não vazio, não "admin")
+     * @param password Palavra-passe (não vazia)
+     * @return {@code true} se registo efetuado, {@code false} se já existir ou inválido
+     */
     public boolean register(String username, String password)
     {
         if(username == null || username.isEmpty() || password == null || password.isEmpty())
@@ -62,7 +89,13 @@ public class AutenticathionManager {
         }
     }
 
-    // Autentica utilizador
+    /**
+     * Autentica utilizador comparando credenciais armazenadas.
+     *
+     * @param username Nome do utilizador
+     * @param password Palavra-passe
+     * @return {@code true} se credenciais válidas
+     */
     public boolean authenticate(String username, String password)
     {
         if(username == null || password == null)
@@ -134,8 +167,8 @@ public class AutenticathionManager {
     }
 
     /**
-    * Persiste todos os utilizadores (chamado externamente)
-    */
+     * Persiste todos os utilizadores no ficheiro configurado.
+     */
     public void persistAll()
     {
         saveUsers();

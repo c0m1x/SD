@@ -1,14 +1,24 @@
 package uminho.grupo57.storage;
 
-import uminho.grupo57.entities.Event;
-import uminho.grupo57.entities.TimeSeries;
-
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import uminho.grupo57.entities.Event;
+import uminho.grupo57.entities.TimeSeries;
+
+/**
+ * Gestão em memória de séries temporais com políticas LRU e caches de
+ * agregação. Fornece acesso thread-safe a séries por dia e operações de
+ * persistência delegadas a {@link SeriesPersistence}.
+ */
 public class SeriesMemoryManager {
 
     private final int maxSeriesInMemory;
@@ -28,7 +38,14 @@ public class SeriesMemoryManager {
         this.aggregationCache = new ConcurrentHashMap<>();
         this.accessOrder = new LinkedHashMap<>(16, 0.75f, true);
     }
-
+    /**
+     * Obtém os dados de um dia, carregando da memória ou do disco conforme necessário.
+     *
+     * @param dia Dia desejado
+     * @param currentDay Dia atual (para políticas de cache)
+     * @return `TimeSeries` para o dia (pode ser vazio)
+     * @throws IOException Se ocorrer erro ao carregar do disco
+     */
     public TimeSeries getDayData(int dia, int currentDay) throws IOException
     {
         if(maxSeriesInMemory == 0)
@@ -51,6 +68,13 @@ public class SeriesMemoryManager {
         }
     }
 
+    /**
+     * Adiciona um evento ao dia corrente (em memória) e invalida a cache
+     * de agregação correspondente caso exista.
+     *
+     * @param event Evento a adicionar
+     * @param currentDay Dia corrente
+     */
     public void addEventToCurrentDay(Event event, int currentDay)
     {
         if(maxSeriesInMemory == 0)
@@ -73,11 +97,28 @@ public class SeriesMemoryManager {
         }
     }
 
+    /**
+     * Persiste um evento em disco (delegado para `SeriesPersistence`).
+     *
+     * @param evento Evento a guardar
+     * @param produto Nome do produto
+     * @param dia Dia do evento
+     * @throws IOException Se ocorrer erro de I/O
+     */
     public void saveEvent(Event evento, String produto, int dia) throws IOException
     {
         persistence.saveEvento(evento, produto, dia);
     }
 
+    /**
+     * Obtém/Calcula cache de agregação para um produto num intervalo de dias.
+     *
+     * @param produto Nome do produto
+     * @param dias Número de dias para agregação
+     * @param currentDay Dia atual
+     * @return `AggregationCache` com resultados agregados
+     * @throws IOException Se ocorrer erro ao ler dados do disco
+     */
     public AggregationCache getAggregationCache(String produto, int dias, int currentDay) throws IOException
     {
         lock.writeLock().lock();
@@ -113,6 +154,15 @@ public class SeriesMemoryManager {
         }
     }
 
+    /**
+     * Recupera eventos filtrados por produtos ao longo dos últimos `dias`.
+     *
+     * @param products Conjunto de nomes de produtos
+     * @param dias Número de dias a incluir
+     * @param currentDay Dia atual
+     * @return Mapa produto -> lista de eventos
+     * @throws IOException Se ocorrer erro ao ler do disco
+     */
     public Map<String, List<Event>> getEventsForProducts(Set<String> products, int dias, int currentDay) throws IOException
     {
         int startDay = Math.max(1, currentDay - dias);
@@ -135,16 +185,27 @@ public class SeriesMemoryManager {
         return result;
     }
 
+    /**
+     * Persiste o dia atual (arquivo dia.dat).
+     *
+     * @param currentDay Dia atual a gravar
+     */
     public void saveCurrentDay(int currentDay)
     {
         persistence.saveCurrentDay(currentDay);
     }
 
+    /** @return dia salvo em disco ou -1 se não existir */
     public int getSavedDay()
     {
         return persistence.getSavedDay();
     }
 
+    /**
+     * Operações a executar quando o dia avança (evicção, etc.).
+     *
+     * @param oldDay Dia anterior
+     */
     public void onDayAdvance(int oldDay)
     {
         if(maxSeriesInMemory == 0)
@@ -153,6 +214,7 @@ public class SeriesMemoryManager {
         evict(oldDay);
     }
 
+    /** @return estatísticas simples de memória (número de séries e caches) */
     public String getMemoryStats()
     {
         lock.readLock().lock();
@@ -172,6 +234,13 @@ public class SeriesMemoryManager {
         }
     }
 
+    /**
+     * Pede à persistência para apagar o dia mais antigo caso o número de
+     * diretórios/dias exceda {@code maxDias}.
+     *
+     * @param maxDias Limite máximo de dias a manter
+     * @param curDay Dia atual
+     */
     public void deleteOldestDayIfLowerThanMax(int maxDias, int curDay)
     {
         persistence.deleteOldestDayIfLowerThanMax(maxDias, curDay);

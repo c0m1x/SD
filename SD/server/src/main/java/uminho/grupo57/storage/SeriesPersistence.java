@@ -1,16 +1,26 @@
 package uminho.grupo57.storage;
 
-import uminho.grupo57.entities.Event;
-import uminho.grupo57.entities.TimeSeries;
-
-import java.io.*;
-import java.nio.file.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import uminho.grupo57.entities.Event;
+import uminho.grupo57.entities.TimeSeries;
 
 /**
  * Gestão de persistência de séries em disco
@@ -26,6 +36,12 @@ public class SeriesPersistence {
         this.baseDirectory = baseDirectory;
         createDirectoryIfNotExists();
     }
+
+    /**
+     * Construtor para persistência de séries.
+     *
+     * @param baseDirectory Diretório base onde dados serão guardados
+     */
 
     private void createDirectoryIfNotExists()
     {
@@ -164,6 +180,12 @@ public class SeriesPersistence {
         }
     }
 
+    /**
+     * Apaga o dia mais antigo se o número de diretorias exceder {@code maxDias}.
+     *
+     * @param maxDias Limite máximo de dias a manter
+     * @param curDay Dia atual (usado para identificação do mais antigo)
+     */
     public void deleteOldestDayIfLowerThanMax(int maxDias, int curDay)
     {
         lock.writeLock().lock();

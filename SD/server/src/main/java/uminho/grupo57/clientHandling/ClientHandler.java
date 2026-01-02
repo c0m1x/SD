@@ -1,22 +1,24 @@
 package uminho.grupo57.clientHandling;
 
-import uminho.grupo57.ThreadPool;
-import uminho.grupo57.Protocol;
-import uminho.grupo57.TaggedConnection;
-import uminho.grupo57.storage.SeriesPersistence;
-
-import java.io.*;
+import java.io.EOFException;
+import java.io.IOException;
 import java.net.Socket;
 import java.util.Arrays;
+import static java.util.Arrays.copyOfRange;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import static java.util.Arrays.copyOfRange;
+import uminho.grupo57.Protocol;
+import uminho.grupo57.TaggedConnection;
+import uminho.grupo57.ThreadPool;
+import uminho.grupo57.storage.SeriesPersistence;
 
 /**
- * Handler que trata um cliente em thread separada
- * Implementa protocolo binário de comunicação request-response COM TAGS
+ * Trata a comunicação com um cliente: recebe frames, enfileira tarefas
+ * e envia respostas. Cada cliente é gerido por instância desta classe.
+ *
+ * Implementa o protocolo binário com tags (request/response).
  */
 public class ClientHandler implements Runnable {
     
@@ -29,6 +31,16 @@ public class ClientHandler implements Runnable {
     private ReentrantLock lock = new ReentrantLock();
     private String currentUser = null;
     
+    /**
+     * Construtor do handler de cliente.
+     *
+     * @param socket Socket do cliente
+     * @param authManager Gestor de autenticação
+     * @param tsManager Gestor de séries temporais
+     * @param threadPool ThreadPool para execução de tasks
+     * @param diskWriters ThreadPool para escrita em disco
+     * @param persistence Persistência de séries
+     */
     public ClientHandler(Socket socket, AutenticathionManager authManager, TimeSeriesManager tsManager, ThreadPool threadPool, ThreadPool diskWriters, SeriesPersistence persistence)
     {
         this.socket = socket;
@@ -63,6 +75,9 @@ public class ClientHandler implements Runnable {
     }
 
 
+    /**
+     * Loop principal do handler: lê frames e submete tarefas para processamento.
+     */
     public void run()
     {
         TaggedConnection connection = null;

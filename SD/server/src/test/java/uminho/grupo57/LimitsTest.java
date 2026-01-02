@@ -1,11 +1,7 @@
 package uminho.grupo57;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.Comparator;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,68 +15,80 @@ public class LimitsTest {
 
     @Test
     public void testDayLimit() throws Exception {
-        Path tempDir = Files.createTempDirectory("ts-limits-");
-        SeriesPersistence sp = new SeriesPersistence(tempDir.toString());
+        Path tmp = Files.createTempDirectory("ts-test-day-");
+        SeriesPersistence sp = new SeriesPersistence(tmp.toString());
 
-        // Create persisted data for days 1..15 directly using SeriesPersistence
+        // create events for days 1..15
         for (int d = 1; d <= 15; d++) {
-            Event e = new Event("Produto", 1, 1.0f, d);
-            sp.saveEvento(e, "Produto", d);
-            // simulate server housekeeping after day advance
-            sp.deleteOldestDayIfLowerThanMax(10, d);
+            Event e = new Event("ProdutoA", 1, 1.0f, d);
+            sp.saveEvento(e, "ProdutoA", d);
         }
 
-        // After housekeeping, oldest 5 days (1..5) should have been deleted
-        for (int d = 1; d <= 5; d++) {
-            assertFalse(sp.exists(d), "Dia " + d + " deveria ter sido removido do disco");
-        }
+        // enforce max 10 days — currentDay = 15
+        // call housekeeping multiple times to remove oldest days until only 10 remain
+        for (int i = 0; i < 5; i++)
+            sp.deleteOldestDayIfLowerThanMax(10, 15);
 
-        for (int d = 6; d <= 15; d++) {
-            assertTrue(sp.exists(d), "Dia " + d + " deveria existir no disco");
-        }
+        // days 1..5 should be removed
+        for (int d = 1; d <= 5; d++)
+            assertFalse(sp.exists(d), "Old day should be deleted: " + d);
 
-        // cleanup
-        try { Files.walk(tempDir).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete); } catch (Exception ignored) {}
+        // days 6..15 should exist
+        for (int d = 6; d <= 15; d++)
+            assertTrue(sp.exists(d), "Recent day should exist: " + d);
     }
 
     @Test
     public void testSeriesMemoryLimit() throws Exception {
-        Path tempDir = Files.createTempDirectory("ts-memlimit-");
-        SeriesPersistence sp = new SeriesPersistence(tempDir.toString());
+        Path tmp = Files.createTempDirectory("ts-test-s-");
+        SeriesPersistence sp = new SeriesPersistence(tmp.toString());
+        int S = 5;
+        SeriesMemoryManager smm = new SeriesMemoryManager(S, sp);
 
-        // create persisted data for days 1..8
-        for (int d = 1; d <= 8; d++) {
-            Event e = new Event("produto", 1, 1.0f, d);
-            sp.saveEvento(e, "produto", d);
+        // create and persist 10 days of data
+        for (int d = 1; d <= 10; d++) {
+            Event e = new Event("Prod" + d, 1, 1.0f, d);
+            sp.saveEvento(e, "Prod" + d, d);
         }
 
-        // create memory manager with S = 5
-        SeriesMemoryManager smm = new SeriesMemoryManager(5, sp);
+        // access all 10 days to force loads
+        for (int d = 1; d <= 10; d++)
+            smm.getDayData(d, 10);
 
-        // load days 1..8 into memory (will cause evictions)
-        // fixed debug file path for easier retrieval when terminal is unavailable
-        Path debugDir = Path.of(System.getProperty("user.home"), "sd-test-logs");
-        Files.createDirectories(debugDir);
-        Path debugFile = debugDir.resolve("limits-debug.txt");
-        Files.writeString(debugFile, "LimitsTest debug log\n", StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        assertTrue(smm.getLoadedSeriesCount() <= S, "Loaded series should not exceed S");
+    }
 
-        for (int d = 1; d <= 8; d++) {
-            smm.getDayData(d, 8);
-            String step = String.format("After loading day %d -> %s\n", d, smm.getMemoryStats());
-            Files.writeString(debugFile, step, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+    @Test
+    public void testLRUEviction() throws Exception {
+        Path tmp = Files.createTempDirectory("ts-test-lru-");
+        SeriesPersistence sp = new SeriesPersistence(tmp.toString());
+        int S = 5;
+        SeriesMemoryManager smm = new SeriesMemoryManager(S, sp);
+
+        // persist S+3 days
+        for (int d = 1; d <= S + 3; d++) {
+            Event e = new Event("P" + d, 1, 1.0f, d);
+            sp.saveEvento(e, "P" + d, d);
         }
 
-        String stats = smm.getMemoryStats(); // format: Series=X | Aggregations=Y
-        String seriesPart = stats.split("\\|")[0];
-        int loaded = Integer.parseInt(seriesPart.replaceAll("[^0-9]", ""));
+        // access first two repeatedly to keep them hot
+        for (int i = 0; i < 5; i++) {
+            smm.getDayData(1, S + 3);
+            smm.getDayData(2, S + 3);
+        }
 
-        String finalLine = String.format("Final memory stats: %s\nAssertion: loaded(%d) <= 5\n", stats, loaded);
-        Files.writeString(debugFile, finalLine, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+        // access the remaining to force eviction
+        for (int d = 3; d <= S + 3; d++)
+            smm.getDayData(d, S + 3);
 
-        // If the assertion fails, the debug file will contain step-by-step state to inspect.
-        assertTrue(loaded <= 5, "Número de séries em memória deve ser <= S (5). Encontrado: " + loaded + ". Ver ficheiro de debug: " + debugFile.toString());
+        // There should have been at least one eviction
+        assertTrue(smm.getEvictions() > 0, "There should be evictions");
 
-        // cleanup temp directory but keep debug logs in ~/sd-test-logs for inspection
-        try { Files.walk(tempDir).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete); } catch (Exception ignored) {}
+        // There should have been some disk loads overall during the test
+        assertTrue(smm.getLoadFromDiskCount() > 0, "There should be disk loads during the test");
+
+        // Ensure memory series count respects S
+        assertTrue(smm.getLoadedSeriesCount() <= S, "Loaded series should not exceed S after eviction");
     }
 }
+

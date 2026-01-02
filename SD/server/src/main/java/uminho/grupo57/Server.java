@@ -3,6 +3,7 @@ package uminho.grupo57;
 import uminho.grupo57.clientHandling.AutenticathionManager;
 import uminho.grupo57.clientHandling.ClientHandler;
 import uminho.grupo57.clientHandling.TimeSeriesManager;
+import uminho.grupo57.storage.SeriesPersistence;
 
 import java.io.*;
 import java.net.*;
@@ -22,36 +23,41 @@ public class Server
 
     private final AutenticathionManager authManager = new AutenticathionManager();
     private final TimeSeriesManager tsManager;
+    private final SeriesPersistence seriesPersistence;
     private final ThreadPool threadPool;
+    private final ThreadPool diskWriters;
     
-    public Server(int port, int maxDays, int maxSeriesInMemory, int numRunnerThreads, String dataDir) throws IOException
+    public Server(int port, int maxDays, int maxSeriesInMemory, int numRunnerThreads, int numDiskWriters, String dataDir) throws IOException
     {
         this.port = port;
         this.maxDays = maxDays;
         this.maxSeriesInMemory = maxSeriesInMemory;
-        this.tsManager = new TimeSeriesManager(maxDays, maxSeriesInMemory, dataDir);
+        this.seriesPersistence = new SeriesPersistence(dataDir);
+        this.tsManager = new TimeSeriesManager(maxDays, maxSeriesInMemory, seriesPersistence);
         this.threadPool = new ThreadPool(numRunnerThreads);
+        this.diskWriters = new ThreadPool(numDiskWriters);
         this.serverSocket = new ServerSocket(port);
     }
 
     public void start(int numThreads, String directory) throws IOException
     {
 
-        System.out.println("┌─────────────────────────────────────────────┐");
-        System.out.println("│  SERVIDOR TIMESERIES INICIADO               │");
-        System.out.println(String.format("│  Porta: %-36s│", port));
-        System.out.println(String.format("│  Dias Máximos (D): %-25s│", maxDays));
-        System.out.println(String.format("│  Séries em Memória (S): %-20s│", maxSeriesInMemory));
-        System.out.println(String.format("│  Número de Threads: %-24s│", numThreads));
-        System.out.println(String.format("│  Diretoria de Persistência: %-16s│", directory));
-        System.out.println("└─────────────────────────────────────────────┘");
+        System.out.println("┌────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│  SERVIDOR TIMESERIES INICIADO                                      │");
+        System.out.println(String.format("│  Porta: %-59s│", port));
+        System.out.println(String.format("│  Dias Máximos (D): %-48s│", maxDays));
+        System.out.println(String.format("│  Séries em Memória (S): %-43s│", maxSeriesInMemory));
+        System.out.println(String.format("│  Número de Threads para Executar Pedidos dos Clientes: %-12s│", numThreads));
+        System.out.println(String.format("│  Número de Threads para Escrever no Disco: %-24s│", numThreads));
+        System.out.println(String.format("│  Diretoria de Persistência: %-39s│", directory));
+        System.out.println("└────────────────────────────────────────────────────────────────────┘");
 
         try {
             while (isRunning) {
                 try {
                     Socket clientSocket = serverSocket.accept();
                     System.out.println("Nova ligação de: " + clientSocket.getRemoteSocketAddress());
-                    threadPool.submitTask(new ClientHandler(clientSocket, authManager, tsManager, threadPool));
+                    threadPool.submitTask(new ClientHandler(clientSocket, authManager, tsManager, threadPool, diskWriters, seriesPersistence));
 
                 }catch (SocketException | InterruptedException e){
                     if(isRunning)
@@ -88,22 +94,22 @@ public class Server
         int maxDays = args.length > 1 ? Integer.parseInt(args[1]) : 30;
         int maxSeries = args.length > 2 ? Integer.parseInt(args[2]) : 10;
         int threads = args.length > 3 ? Integer.parseInt(args[3]) : 20;
-        String nDirs = args.length > 4 ? args[4] : "data/series";
+        int threadsDisk = args.length > 4 ? Integer.parseInt(args[4]) : 5;
+        String nDirs = args.length > 5 ? args[5] : "data/series";
 
-        Server srv = new Server(port, maxDays, maxSeries, threads, nDirs);
+        Server srv = new Server(port, maxDays, maxSeries, threads, threadsDisk, nDirs);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        Runtime.getRuntime().addShutdownHook(new Thread(() ->
+        {
             System.out.println("\nA encerrar servidor (Ctrl+C)...");
-            try {
+            try{
                 srv.stop();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            }catch (IOException e){e.printStackTrace();}
         }));
 
-        try {
+        try{
             srv.start(threads, nDirs);
-        } catch (IOException e) {
+        }catch (IOException e){
             System.err.println("Erro grave no servidor: " + e.getMessage());
             e.printStackTrace();
         }

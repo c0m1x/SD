@@ -208,13 +208,13 @@ public class TimeSeriesClient implements AutoCloseable {
      * @see AutoCloseable#close()
      */
     @Override
-    public void close() throws IOException, InterruptedException {
-        if(connected) {
-            try {
+    public void close() throws IOException, InterruptedException
+    {
+        if(connected)
+        {
+            try{
                 sendRequest(Protocol.LOGOUT);
-            } catch (Exception e) {
-                // Ignorar erros ao fazer logout
-            }
+            }catch (Exception e) {}
             demux.close();
             connected = false;
             System.out.println("Desconectado");
@@ -291,40 +291,9 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Regista evento de compra no dia corrente.
-     * <p>
-     * Adiciona evento à série temporal do utilizador autenticado.
-     * Evento é associado ao dia atual do servidor.
-     * </p>
-     * 
-     * <h3>Validações</h3>
-     * <ul>
-     *   <li>Produto não pode ser vazio</li>
-     *   <li>Quantidade deve ser positiva ({@code > 0})</li>
-     *   <li>Preço deve ser não-negativo ({@code >= 0})</li>
-     * </ul>
-     * 
-     * <h3>Exemplo</h3>
-     * <pre>{@code
-     * // Compra de 2kg de arroz a 1.50€/kg
-     * client.registarCompra("Arroz", 2, 1.50f);
-     * 
-     * // Total gasto: 2 * 1.50 = 3.00€
-     * }</pre>
-     * 
-     * @param produto Nome do produto (ex: "Arroz", "Feijão")
-     * @param quantidade Quantidade comprada (inteiro positivo)
-     * @param preco Preço unitário em euros (float não-negativo)
-     * @return {@code true} se evento registado com sucesso
-     * @throws IOException Se erro de comunicação ocorrer
-     * @throws InterruptedException Se thread for interrompida
-     * @throws IllegalStateException se não estiver conectado ou não autenticado
-     * @see #consultarProduto(String)
-     * @see Event
-     */
-    public boolean registarCompra(String produto, int quantidade, float preco) 
-            throws IOException, InterruptedException {
+    // Regista um novo evento de compra
+    private boolean registarCompra(String produto, int quantidade, float preco) throws IOException, InterruptedException
+    {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.ADD_EVENT,
                 produto, String.valueOf(quantidade), String.valueOf(preco));
@@ -338,40 +307,9 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Consulta estatísticas agregadas de um produto no dia corrente.
-     * <p>
-     * Retorna métricas calculadas com base em todos eventos do produto no dia atual.
-     * Usa sistema de cache no servidor para otimização ({@link AggregationCache}).
-     * </p>
-     * 
-     * <h3>Estatísticas Retornadas</h3>
-     * <ul>
-     *   <li><b>Quantidade Total:</b> Soma de todas quantidades compradas</li>
-     *   <li><b>Valor Total Gasto:</b> Soma de (quantidade × preço)</li>
-     *   <li><b>Preço Máximo:</b> Maior preço unitário registado</li>
-     *   <li><b>Preço Mínimo:</b> Menor preço unitário registado</li>
-     *   <li><b>Preço Médio:</b> Valor total / Quantidade total</li>
-     * </ul>
-     * 
-     * <h3>Exemplo de Saída</h3>
-     * <pre>
-     * Estatisticas: Arroz
-     * Quantidade total: 5 unidades
-     * Valor total gasto: 7.50€
-     * Preco maximo: 2.00€
-     * Preco minimo: 1.00€
-     * Preco medio: 1.50€
-     * </pre>
-     * 
-     * @param produto Nome do produto a consultar
-     * @throws IOException Se erro de comunicação ocorrer
-     * @throws InterruptedException Se thread for interrompida
-     * @throws IllegalStateException se não estiver conectado ou não autenticado
-     * @see #consultarAgregacaoRange(String, int)
-     * @see AggregationCache
-     */
-    public void consultarProduto(String produto) throws IOException, InterruptedException {
+    // Consulta estatísticas de um produto
+    private void consultarProduto(String produto) throws IOException, InterruptedException
+    {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.QUERY_PRODUCT, produto);
 
@@ -399,42 +337,9 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Consulta estatísticas agregadas de um produto nos últimos N dias.
-     * <p>
-     * Agrega eventos desde {@code (diaAtual - numeroDias)} até {@code diaAtual}.
-     * Útil para análises de tendências e histórico de compras.
-     * </p>
-     * 
-     * <h3>Comportamento</h3>
-     * <ul>
-     *   <li>Se {@code numeroDias = 0}: apenas dia atual (equivalente a {@link #consultarProduto})</li>
-     *   <li>Se {@code numeroDias = 7}: últimos 7 dias incluindo hoje</li>
-     *   <li>Dias anteriores a (diaAtual - D) são ignorados (parâmetro maxDays do servidor)</li>
-     * </ul>
-     * 
-     * <h3>Exemplo</h3>
-     * <pre>{@code
-     * // Estatísticas dos últimos 7 dias
-     * client.consultarAgregacaoRange("Arroz", 7);
-     * 
-     * // Output:
-     * // Estatisticas Arroz (ultimos 7 dias)
-     * // Quantidade total: 15 unidades
-     * // Valor total gasto: 22.50€
-     * // ...
-     * }</pre>
-     * 
-     * @param produto Nome do produto a consultar
-     * @param numeroDias Número de dias anteriores a incluir (>= 0)
-     * @throws IOException Se erro de comunicação ocorrer
-     * @throws InterruptedException Se thread for interrompida
-     * @throws IllegalStateException se não estiver conectado ou não autenticado
-     * @see #consultarProduto(String)
-     * @see AggregationCache
-     */
-    public void consultarAgregacaoRange(String produto, int numeroDias) 
-            throws IOException, InterruptedException {
+    // Consulta agregação de um produto nos últimos N dias
+    private void consultarAgregacaoRange(String produto, int numeroDias) throws IOException, InterruptedException
+    {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.AGGREGATE_RANGE, 
                 produto, String.valueOf(numeroDias));
@@ -463,38 +368,8 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Filtra eventos de produtos específicos num intervalo de dias.
-     * <p>
-     * Retorna lista detalhada de todos eventos dos produtos especificados
-     * desde {@code (diaAtual - dia)} até {@code diaAtual}.
-     * </p>
-     * 
-     * <h3>Formato de Resposta</h3>
-     * <pre>
-     * Produto1:
-     *      5 | 1.50€ | Dia 1
-     *      2 | 2.00€ | Dia 3
-     * Produto2:
-     *      1 | 3.00€ | Dia 2
-     * </pre>
-     * 
-     * <h3>Exemplo de Uso</h3>
-     * <pre>{@code
-     * // Filtrar eventos de Arroz e Feijão nos últimos 5 dias
-     * String[] produtos = {"Arroz", "Feijão"};
-     * client.filtrarEventos(5, produtos);
-     * }</pre>
-     * 
-     * @param dia Número de dias anteriores a considerar
-     * @param produtos Array de nomes de produtos a filtrar
-     * @throws IOException Se erro de comunicação ocorrer
-     * @throws InterruptedException Se thread for interrompida
-     * @throws IllegalStateException se não estiver conectado ou não autenticado
-     * @see #consultarAgregacaoRange(String, int)
-     */
-    public void filtrarEventos(int dia, String[] produtos) 
-            throws IOException, InterruptedException {
+    private void filtrarEventos(int dia, String[] produtos) throws IOException, InterruptedException
+    {
         checkConnection();
         String[] args = new String[produtos.length + 1];
         args[0] = String.valueOf(dia);
@@ -535,45 +410,9 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Aguarda (bloqueante) até dois produtos serem vendidos no mesmo dia.
-     * <p>
-     * Thread fica bloqueada até:
-     * <ul>
-     *   <li>Ambos produtos serem vendidos no dia corrente → retorna {@code true}</li>
-     *   <li>Dia avançar sem condição satisfeita → retorna {@code false}</li>
-     * </ul>
-     * </p>
-     * 
-     * <h3>Caso de Uso</h3>
-     * <p>
-     * Útil para detectar correlações de compras ou patterns de consumo.
-     * Por exemplo, aguardar até que Arroz e Feijão sejam vendidos juntos.
-     * </p>
-     * 
-     * <h3>Exemplo</h3>
-     * <pre>{@code
-     * // Thread fica bloqueada aqui
-     * boolean vendeuJunto = client.aguardarVendasSimultaneas("Arroz", "Feijão");
-     * 
-     * if (vendeuJunto) {
-     *     System.out.println("Arroz e Feijão vendidos no mesmo dia!");
-     * } else {
-     *     System.out.println("Dia avançou sem venda simultânea.");
-     * }
-     * }</pre>
-     * 
-     * @param produto1 Nome do primeiro produto
-     * @param produto2 Nome do segundo produto
-     * @return {@code true} se ambos vendidos no dia, {@code false} se dia avançou
-     * @throws IOException Se erro de comunicação ocorrer
-     * @throws InterruptedException Se thread for interrompida
-     * @throws IllegalStateException se não estiver conectado ou não autenticado
-     * @see #aguardarVendasConsecutivas(String, int)
-     * @see NotificationManager#waitSimultaneous(String, String, String)
-     */
-    public boolean aguardarVendasSimultaneas(String produto1, String produto2) 
-            throws IOException, InterruptedException {
+
+    private boolean aguardarVendasSimultaneas(String produto1, String produto2) throws IOException, InterruptedException
+    {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.WAIT_SIMULTANEOUS, produto1, produto2);
 
@@ -590,55 +429,8 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Aguarda (bloqueante) até N vendas consecutivas do mesmo produto.
-     * <p>
-     * Thread fica bloqueada até:
-     * <ul>
-     *   <li>N vendas consecutivas do produto → retorna nome do produto</li>
-     *   <li>Dia avançar sem condição satisfeita → retorna {@code null}</li>
-     * </ul>
-     * </p>
-     * 
-     * <h3>Definição de "Consecutivo"</h3>
-     * <p>
-     * Contador de streak é resetado quando <b>qualquer outro produto</b> é vendido.
-     * </p>
-     * 
-     * <h3>Exemplo</h3>
-     * <pre>{@code
-     * // Aguardar 3 vendas consecutivas de Arroz
-     * String produto = client.aguardarVendasConsecutivas("Arroz", 3);
-     * 
-     * if (produto != null) {
-     *     System.out.println("3 vendas consecutivas de " + produto + "!");
-     * } else {
-     *     System.out.println("Dia avançou sem streak.");
-     * }
-     * 
-     * // Cenário que satisfaz:
-     * // Venda 1: Arroz
-     * // Venda 2: Arroz
-     * // Venda 3: Arroz  ← Thread acorda aqui
-     * 
-     * // Cenário que NÃO satisfaz:
-     * // Venda 1: Arroz
-     * // Venda 2: Arroz
-     * // Venda 3: Feijão ← Streak resetado
-     * // Venda 4: Arroz  ← Streak = 1 novamente
-     * }</pre>
-     * 
-     * @param produto Nome do produto
-     * @param n Número de vendas consecutivas necessárias (> 0)
-     * @return Nome do produto se condição satisfeita, {@code null} se dia avançou
-     * @throws IOException Se erro de comunicação ocorrer
-     * @throws InterruptedException Se thread for interrompida
-     * @throws IllegalStateException se não estiver conectado ou não autenticado
-     * @see #aguardarVendasSimultaneas(String, String)
-     * @see NotificationManager#waitConsecutive(String, String, int)
-     */
-    public String aguardarVendasConsecutivas(String produto, int n) 
-            throws IOException, InterruptedException {
+    private String aguardarVendasConsecutivas(String produto, int n) throws IOException, InterruptedException
+    {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.WAIT_CONSECUTIVE, 
                 produto, String.valueOf(n));
@@ -658,27 +450,9 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Lista todos produtos com eventos registados pelo utilizador.
-     * <p>
-     * Retorna nomes de produtos únicos que têm pelo menos um evento no dia corrente.
-     * </p>
-     * 
-     * <h3>Exemplo de Saída</h3>
-     * <pre>
-     * Produtos Registados
-     *   Arroz
-     *   Feijão
-     *   Açúcar
-     *   Massa
-     * </pre>
-     * 
-     * @throws IOException Se erro de comunicação ocorrer
-     * @throws InterruptedException Se thread for interrompida
-     * @throws IllegalStateException se não estiver conectado ou não autenticado
-     * @see #consultarProduto(String)
-     */
-    public void listarProdutos() throws IOException, InterruptedException {
+
+    private void listarProdutos() throws IOException, InterruptedException
+    {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.LIST_PRODUCTS);
 
@@ -697,42 +471,8 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Avança para o dia seguinte no servidor (apenas administrador).
-     * <p>
-     * <b>Apenas o utilizador "admin" pode executar este comando.</b>
-     * </p>
-     * 
-     * <h3>Efeitos no Servidor</h3>
-     * <ul>
-     *   <li>Incrementa contador do dia corrente</li>
-     *   <li>Persiste séries do dia anterior para disco</li>
-     *   <li>Remove dias anteriores a D (parâmetro maxDays)</li>
-     *   <li>Notifica todas threads bloqueadas em wait operations</li>
-     *   <li>Reseta streaks de vendas consecutivas</li>
-     * </ul>
-     * 
-     * <h3>Exemplo</h3>
-     * <pre>{@code
-     * // Fazer login como admin
-     * client.login("admin", "1234");
-     * 
-     * // Avançar dia
-     * boolean success = client.nextDay();
-     * 
-     * if (success) {
-     *     System.out.println("Dia avançado com sucesso!");
-     * }
-     * }</pre>
-     * 
-     * @return {@code true} se dia avançado com sucesso
-     * @throws IOException Se erro de comunicação ocorrer
-     * @throws InterruptedException Se thread for interrompida
-     * @throws IllegalStateException se não estiver conectado ou não autenticado
-     * @see TimeSeriesManager#nextDay()
-     * @see NotificationManager#onDayAdvance()
-     */
-    public boolean nextDay() throws IOException, InterruptedException {
+    private boolean nextDay() throws IOException, InterruptedException
+    {
         checkConnection();
         Protocol.Message response = sendRequest(Protocol.NEXT_DAY);
 
@@ -745,14 +485,8 @@ public class TimeSeriesClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Verifica se cliente está conectado ao servidor.
-     * 
-     * @return {@code true} se conectado, {@code false} caso contrário
-     * @see #connect(String, int)
-     * @see #close()
-     */
-    public boolean isConnected() {
+    private boolean isConnected()
+    {
         return connected;
     }
 
@@ -1080,5 +814,45 @@ public class TimeSeriesClient implements AutoCloseable {
                 System.err.println("Erro ao avançar dia: " + e.getMessage());
             }
         }
+    }
+
+    public void handleRegistarCompra(String produto, int quantidade, float preco)
+    {
+        new RegistarCompraHandler(produto, quantidade, preco).start();
+    }
+
+    public void handleConsultarProduto(String produto)
+    {
+        new ConsultarProdutoHandler(produto).start();
+    }
+
+    public void handleConsultarAgregacaoRange(String produto, int numeroDias)
+    {
+        new ConsultarAgregacaoRangeHandler(produto, numeroDias).start();
+    }
+
+    public void handleFiltrarEventos(int dia, String[] produtos)
+    {
+        new FiltrarEventosHandler(dia, produtos).start();
+    }
+
+    public void handleAguardarVendasSimultaneas(String produto1, String produto2)
+    {
+        new AguardarVendasSimultaneasHandler(produto1, produto2).start();
+    }
+
+    public void handleAguardarVendasConsecutivas(String produto, int n)
+    {
+        new AguardarVendasConsecutivasHandler(produto, n).start();
+    }
+
+    public void handleListarProdutos()
+    {
+        new ListarProdutosHandler().start();
+    }
+
+    public void handleNextDay()
+    {
+        new NextDayHandler().start();
     }
 }

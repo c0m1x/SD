@@ -1,6 +1,7 @@
 package uminho.grupo57.clientHandling;
 
 import uminho.grupo57.Protocol;
+import uminho.grupo57.ThreadPool;
 import uminho.grupo57.entities.Event;
 import uminho.grupo57.storage.AggregationCache;
 
@@ -14,14 +15,14 @@ public class Skeleton
 {
     private final AutenticathionManager authManager;
     private final TimeSeriesManager tsManager;
+    private final ThreadPool diskWriters;
 
-    public Skeleton(AutenticathionManager authManager, TimeSeriesManager tsManager)
+    public Skeleton(AutenticathionManager authManager, TimeSeriesManager tsManager, ThreadPool diskWriters)
     {
         this.authManager = authManager;
         this.tsManager = tsManager;
+        this.diskWriters = diskWriters;
     }
-
-    /* ================= AUTH ================= */
 
     public Protocol.Message register(String username, String password)
     {
@@ -48,7 +49,7 @@ public class Skeleton
 
 
 
-    public Protocol.Message addEvent(String user, String produto, int quantidade, float preco)
+    public Protocol.Message addEvent(String user, String produto, int quantidade, float preco) throws InterruptedException
     {
         if(user == null)
             return Protocol.unauthorized("Login necessário");
@@ -56,7 +57,15 @@ public class Skeleton
         if(quantidade <= 0 || preco < 0)
             return Protocol.error("Quantidade deve ser positiva e preço não-negativo");
 
-        tsManager.addEvent(user, produto, quantidade, preco);
+        Event evento = tsManager.addEvent(produto, quantidade, preco);
+        diskWriters.submitTask(() ->
+        {
+            try{
+                tsManager.saveEvent(evento, produto);
+            }catch (IOException e){
+                System.err.println("Erro ao guardar evento no disco: " + e.getMessage());
+            }
+        });
         return Protocol.ok("Evento registado");
     }
 
@@ -65,7 +74,7 @@ public class Skeleton
         if(user == null)
             return Protocol.unauthorized("Login necessário");
 
-        AggregationCache cache = tsManager.getCacheForToday(user, produto);
+        AggregationCache cache = tsManager.getCacheForToday(produto);
         if(!cache.isCalculated())
             return Protocol.ok("0");
 
@@ -87,7 +96,7 @@ public class Skeleton
         if(user == null)
             return Protocol.unauthorized("Login necessário");
 
-        Set<String> produtos = tsManager.getAllProdutos(user);
+        Set<String> produtos = tsManager.getAllProdutos();
         return Protocol.ok(String.join(",", produtos));
     }
 
@@ -109,7 +118,7 @@ public class Skeleton
         if(user == null)
             return Protocol.unauthorized("Login necessário");
 
-        AggregationCache cache = tsManager.getCacheRange(user, produto, dias);
+        AggregationCache cache = tsManager.getCacheRange(produto, dias);
         if(!cache.isCalculated())
             return Protocol.ok("0");
 
@@ -133,7 +142,7 @@ public class Skeleton
         if(user == null)
             return Protocol.unauthorized("Login necessário");
 
-        Map<String, List<Event>> map = tsManager.getFilteredProducts(user, produtos, dia);
+        Map<String, List<Event>> map = tsManager.getFilteredProducts(produtos, dia);
         StringBuilder sb = new StringBuilder();
         boolean firstProd = true;
 
@@ -169,21 +178,19 @@ public class Skeleton
 
     public Protocol.Message waitSimultaneous(String user, String p1, String p2) throws InterruptedException
     {
-        if (user == null)
+        if(user == null)
             return Protocol.unauthorized("Login necessário");
 
-        boolean ok = tsManager.getNotificationManager()
-                .waitSimultaneous(user, p1, p2);
+        boolean ok = tsManager.getNotificationManager().waitSimultaneous(p1, p2);
         return Protocol.ok(Boolean.toString(ok));
     }
 
     public Protocol.Message waitConsecutive(String user, String produto, int n) throws InterruptedException
     {
-        if (user == null)
+        if(user == null)
             return Protocol.unauthorized("Login necessário");
 
-        boolean ok = tsManager.getNotificationManager()
-                .waitConsecutive(user, produto, n);
-        return Protocol.ok(ok ? produto : "null");
+        boolean ok = tsManager.getNotificationManager().waitConsecutive(produto, n);
+        return Protocol.ok(Boolean.toString(ok));
     }
 }

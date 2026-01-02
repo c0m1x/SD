@@ -2,12 +2,14 @@ package uminho.grupo57.storage;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -29,6 +31,11 @@ public class SeriesMemoryManager {
     private final Map<Integer, Map<Integer, AggregationCache>> aggregationCache; // produtoHash -> (dia -> AggregationCache)
     private final Map<Integer, Long> accessOrder; // LRU key = dia
 
+    // Instrumentation
+    private final AtomicInteger loadFromDiskCount = new AtomicInteger(0);
+    private final AtomicInteger cacheHits = new AtomicInteger(0);
+    private final AtomicInteger evictions = new AtomicInteger(0);
+
     public SeriesMemoryManager(int maxSeriesInMemory, SeriesPersistence persistence)
     {
         this.maxSeriesInMemory = maxSeriesInMemory;
@@ -36,7 +43,7 @@ public class SeriesMemoryManager {
 
         this.seriesInMemory = new ConcurrentHashMap<>();
         this.aggregationCache = new ConcurrentHashMap<>();
-        this.accessOrder = new LinkedHashMap<>(16, 0.75f, true);
+        this.accessOrder = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true));
     }
     /**
      * Obtém os dados de um dia, carregando da memória ou do disco conforme necessário.
@@ -53,19 +60,23 @@ public class SeriesMemoryManager {
         if(dia == currentDay)
             return getOrCreateInMemory(dia);
 
+        // Fast-path: try read-lock to see if present
         lock.readLock().lock();
-        try{
-            TimeSeries ts = seriesInMemory.get(dia);
-            if(ts != null)
-            {
+        TimeSeries ts;
+        try {
+            ts = seriesInMemory.get(dia);
+            if (ts != null) {
+                cacheHits.incrementAndGet();
                 updateAccessOrder(dia);
                 return ts;
-            }else{
-                return loadFromDiskAndManageMemory(dia);
             }
-        }finally{
+        } finally {
             lock.readLock().unlock();
         }
+
+        // Not present in memory: load from disk and manage memory.
+        // Important: do NOT try to acquire write lock while holding read lock
+        return loadFromDiskAndManageMemory(dia);
     }
 
     /**
@@ -248,22 +259,28 @@ public class SeriesMemoryManager {
 
     private TimeSeries getOrCreateInMemory(int dia)
     {
-        TimeSeries ts = seriesInMemory.get(dia);
-        if(ts != null)
+        lock.writeLock().lock();
+        try {
+            TimeSeries ts = seriesInMemory.get(dia);
+            if (ts != null)
+                return ts;
+
+            if (countSeries() >= maxSeriesInMemory)
+                evictLeastRecentlyUsed();
+
+            ts = new TimeSeries(dia, new HashMap<>());
+            seriesInMemory.put(dia, ts);
+            updateAccessOrder(dia);
             return ts;
-
-        if(countSeries() >= maxSeriesInMemory)
-            evictLeastRecentlyUsed();
-
-        ts = new TimeSeries(dia, new HashMap<>());
-        seriesInMemory.put(dia, ts);
-        updateAccessOrder(dia);
-        return ts;
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     private TimeSeries loadFromDiskAndManageMemory(int dia) throws IOException
     {
         TimeSeries diskData = persistence.loadDayData(dia);
+        loadFromDiskCount.incrementAndGet();
         if(diskData == null)
             diskData = new TimeSeries(dia, new HashMap<>());
 
@@ -289,20 +306,22 @@ public class SeriesMemoryManager {
 
     private void evictLeastRecentlyUsed()
     {
-        if(accessOrder.isEmpty())
-            return;
+        synchronized (accessOrder) {
+            if (accessOrder.isEmpty())
+                return;
 
-        Integer key = accessOrder.keySet().iterator().next();
-        evict(key);
+            Integer key = accessOrder.keySet().iterator().next();
+            evict(key);
+        }
     }
 
     private void evict(int dia)
     {
-
         seriesInMemory.remove(dia);
         accessOrder.remove(dia);
 
         aggregationCache.values().forEach(m -> m.remove(dia));
+        evictions.incrementAndGet();
     }
 
     private int countSeries()
@@ -313,5 +332,22 @@ public class SeriesMemoryManager {
     private void updateAccessOrder(int dia)
     {
         accessOrder.put(dia, System.currentTimeMillis());
+    }
+
+    // Instrumentation getters
+    public int getLoadedSeriesCount() {
+        return seriesInMemory.size();
+    }
+
+    public int getLoadFromDiskCount() {
+        return loadFromDiskCount.get();
+    }
+
+    public int getCacheHits() {
+        return cacheHits.get();
+    }
+
+    public int getEvictions() {
+        return evictions.get();
     }
 }

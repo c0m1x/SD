@@ -1,12 +1,18 @@
 package uminho.grupo57;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
+import uminho.grupo57.storage.SeriesMemoryManager;
+import uminho.grupo57.storage.SeriesPersistence;
 
 /**
  * Testes de Desempenho do Sistema de Séries Temporais
@@ -78,29 +84,34 @@ public class PerformanceTest {
     
     // TODO: Implementar teste de escalabilidade
     public static void testScalability() throws Exception {
-        System.out.println("\n### TESTE DE ESCALABILIDADE ###");
-        System.out.println("TODO: Implementar teste com 1, 5, 10, 20, 50, 100 clientes concorrentes");
-        System.out.println("      Medir throughput e latência para cada configuração");
-        System.out.println("      Gerar gráfico mostrando escalabilidade do sistema");
-        
-        int[] clientCounts = {1, 5, 10, 20, 50};
-        int operationsPerClient = 100;
-        
+        System.out.println("\n### TESTE DE ESCALABILIDADE (simulado) ###");
+        int[] clientCounts = {1, 5, 10, 20};
+        int operationsPerClient = 200;
+
         for (int numClients : clientCounts) {
             System.out.println("\n--- Testando com " + numClients + " clientes ---");
-            
+
             Metrics metrics = new Metrics();
             ExecutorService executor = Executors.newFixedThreadPool(numClients);
             CountDownLatch latch = new CountDownLatch(numClients);
-            
+
             long startTime = System.currentTimeMillis();
-            
-            // TODO: Implementar lógica aqui
+
             for (int i = 0; i < numClients; i++) {
                 final int clientId = i;
                 executor.submit(() -> {
                     try {
-                        System.out.println("Cliente " + clientId + " completado (placeholder)");
+                        // Each simulated client performs repeated lightweight aggregations
+                        SeriesPersistence sp = new SeriesPersistence(System.getProperty("java.io.tmpdir"));
+                        SeriesMemoryManager smm = new SeriesMemoryManager(10, sp);
+                        long localStart = System.nanoTime();
+                        for (int op = 0; op < operationsPerClient; op++) {
+                            // alternate days and products
+                            int day = 1 + (op % 10);
+                            smm.getAggregationCache("produto" + (op % 3), 3, 10);
+                        }
+                        long localDur = System.nanoTime() - localStart;
+                        metrics.recordSuccess(localDur / 1000000);
                     } catch (Exception e) {
                         metrics.recordError();
                         System.err.println("Cliente " + clientId + " falhou: " + e.getMessage());
@@ -109,13 +120,13 @@ public class PerformanceTest {
                     }
                 });
             }
-            
+
             latch.await();
             long endTime = System.currentTimeMillis();
-            
+
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
-            
+
             metrics.printReport("Escalabilidade com " + numClients + " clientes", endTime - startTime);
         }
     }

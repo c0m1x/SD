@@ -1,6 +1,5 @@
 package uminho.grupo57;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -9,7 +8,6 @@ import org.junit.jupiter.api.Test;
  * Mantém os métodos como placeholders desativados (@Disabled) —
  * podem ser ativados/implementar quando o servidor de teste estiver disponível.
  */
-@Disabled("Testes de performance são longos; habilitar manualmente quando necessário")
 public class PerformanceIntegrationTest {
 
     @Test

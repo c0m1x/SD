@@ -1,5 +1,16 @@
 package uminho.grupo57;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+
+import uminho.grupo57.entities.Event;
+import uminho.grupo57.storage.SeriesMemoryManager;
+import uminho.grupo57.storage.SeriesPersistence;
 /**
  * Teste de Limites D (Dias Históricos) e S (Séries em Memória)
  * 
@@ -89,65 +100,79 @@ public class LimitsTest {
     private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 8080;
     
-    // TODO: Implementar teste de limite D
-    public static void testDayLimit() {
-        System.out.println("\n=== TESTE: Limite D (Dias Históricos) ===");
-        System.out.println("TODO: Validar que apenas últimos D dias são mantidos");
-        System.out.println("      Passos:");
-        System.out.println("      1. Iniciar servidor com D=10");
-        System.out.println("      2. Adicionar eventos e avançar 15 dias");
-        System.out.println("      3. Verificar que dia 1-5 não existem mais");
-        System.out.println("      4. Verificar que agregações de dias antigos falham");
-        System.out.println("      5. Verificar ficheiros em disco (apenas D mais recentes)");
-        
-        // Exemplo de implementação:
-        // TimeSeriesClient client = new TimeSeriesClient();
-        // client.connect(SERVER_HOST, SERVER_PORT);
-        // client.login("user1", "pass");
-        // 
-        // for (int day = 0; day < 15; day++) {
-        //     client.addEvent("Produto1", 10, 5.0f);
-        //     client.nextDay(); // Apenas admin pode
-        // }
-        // 
-        // // Tentar agregar dia muito antigo (deve falhar)
-        // Map<String, Object> stats = client.aggregateRange("Produto1", 12);
-        // assert stats.isEmpty() || stats.get("quantidade_total") == 0;
-        
-        System.out.println("✗ NÃO IMPLEMENTADO - implementar lógica acima");
+    @Test
+    public void testDayLimit() throws Exception {
+        Path tmp = Files.createTempDirectory("ts-test-day-");
+        SeriesPersistence sp = new SeriesPersistence(tmp.toString());
+
+        // create events for days 1..15
+        for (int d = 1; d <= 15; d++) {
+            Event e = new Event("ProdutoA", 1, 1.0f, d);
+            sp.saveEvento(e, "ProdutoA", d);
+        }
+
+        // enforce max 10 days — currentDay = 15
+        sp.deleteOldestDayIfLowerThanMax(10, 15);
+
+        // days 1..5 should be removed
+        for (int d = 1; d <= 5; d++)
+            assertFalse(sp.exists(d), "Old day should be deleted: " + d);
+
+        // days 6..15 should exist
+        for (int d = 6; d <= 15; d++)
+            assertTrue(sp.exists(d), "Recent day should exist: " + d);
     }
     
-    // TODO: Implementar teste de limite S
-    public static void testSeriesMemoryLimit() {
-        System.out.println("\n=== TESTE: Limite S (Séries em Memória) ===");
-        System.out.println("TODO: Validar que no máximo S séries ficam em memória");
-        System.out.println("      Passos:");
-        System.out.println("      1. Iniciar servidor com D=30, S=5");
-        System.out.println("      2. Criar 10 users, adicionar eventos em 10 dias");
-        System.out.println("      3. Fazer agregações que carregam > S séries");
-        System.out.println("      4. Instrumentar SeriesMemoryManager para contar séries");
-        System.out.println("      5. Verificar que tamanho do Map nunca > S");
-        
-        System.out.println("\n   INSTRUMENTAÇÃO NECESSÁRIA:");
-        System.out.println("   - Adicionar método getLoadedSeriesCount() em SeriesMemoryManager");
-        System.out.println("   - Adicionar contador de cache hits/misses");
-        System.out.println("   - Logar quando série é evicted do cache");
-        
-        System.out.println("✗ NÃO IMPLEMENTADO - implementar lógica acima");
+    @Test
+    public void testSeriesMemoryLimit() throws Exception {
+        Path tmp = Files.createTempDirectory("ts-test-s-");
+        SeriesPersistence sp = new SeriesPersistence(tmp.toString());
+        int S = 5;
+        SeriesMemoryManager smm = new SeriesMemoryManager(S, sp);
+
+        // create and persist 10 days of data
+        for (int d = 1; d <= 10; d++) {
+            Event e = new Event("Prod" + d, 1, 1.0f, d);
+            sp.saveEvento(e, "Prod" + d, d);
+        }
+
+        // access all 10 days to force loads
+        for (int d = 1; d <= 10; d++)
+            smm.getDayData(d, 10);
+
+        assertTrue(smm.getLoadedSeriesCount() <= S, "Loaded series should not exceed S");
     }
     
-    // TODO: Implementar teste de LRU
-    public static void testLRUEviction() {
-        System.out.println("\n=== TESTE: Política LRU (Least Recently Used) ===");
-        System.out.println("TODO: Verificar que séries menos usadas são evicted");
-        System.out.println("      Passos:");
-        System.out.println("      1. Carregar S+3 séries diferentes");
-        System.out.println("      2. Fazer múltiplas agregações nas mesmas 2 séries");
-        System.out.println("      3. Verificar que essas 2 séries ficam 'hot' em memória");
-        System.out.println("      4. Verificar que outras são evicted");
-        System.out.println("      5. Re-acesso a série evicted deve recarregar (miss)");
-        
-        System.out.println("✗ NÃO IMPLEMENTADO - implementar lógica acima");
+    @Test
+    public void testLRUEviction() throws Exception {
+        Path tmp = Files.createTempDirectory("ts-test-lru-");
+        SeriesPersistence sp = new SeriesPersistence(tmp.toString());
+        int S = 5;
+        SeriesMemoryManager smm = new SeriesMemoryManager(S, sp);
+
+        // persist S+3 days
+        for (int d = 1; d <= S + 3; d++) {
+            Event e = new Event("P" + d, 1, 1.0f, d);
+            sp.saveEvento(e, "P" + d, d);
+        }
+
+        // access first two repeatedly to keep them hot
+        for (int i = 0; i < 5; i++) {
+            smm.getDayData(1, S + 3);
+            smm.getDayData(2, S + 3);
+        }
+
+        // access the remaining to force eviction
+        for (int d = 3; d <= S + 3; d++)
+            smm.getDayData(d, S + 3);
+
+        // There should have been at least one eviction
+        assertTrue(smm.getEvictions() > 0, "There should be evictions");
+        // Hot days should be present (access again should not increase loadFromDisk)
+        int before = smm.getLoadFromDiskCount();
+        smm.getDayData(1, S + 3);
+        smm.getDayData(2, S + 3);
+        assertEquals(before, smm.getLoadFromDiskCount(), "Hot days should not trigger disk loads");
     }
     
     // TODO: Implementar comparação memória vs disco

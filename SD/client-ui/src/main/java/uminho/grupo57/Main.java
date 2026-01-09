@@ -160,7 +160,7 @@ public class Main
         System.out.println("│ 1. Registar Compra              │");
         System.out.println("│ 2. Consultar Estatísticas       │");
         System.out.println("│ 3. Consultar Agregação          │");
-        System.out.println("│ 4. Listar Produtos              │");
+        System.out.println("│ 4. Listar Produtos do Dia       │");
         System.out.println("│ 5. Filtrar Eventos              │");
         System.out.println("│ 6. Aguardar Vendas Consecutivas │");
         System.out.println("│ 7. Aguardar Vendas Simultaneas  │");

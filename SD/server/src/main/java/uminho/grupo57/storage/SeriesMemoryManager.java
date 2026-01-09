@@ -21,29 +21,27 @@ import uminho.grupo57.entities.TimeSeries;
  * agregação. Fornece acesso thread-safe a séries por dia e operações de
  * persistência delegadas a {@link SeriesPersistence}.
  */
-public class SeriesMemoryManager {
-
+public class SeriesMemoryManager
+{
     private final int maxSeriesInMemory;
     private final SeriesPersistence persistence;
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final Map<Integer, TimeSeries> seriesInMemory; // dia -> TimeSeries
-    private final Map<Integer, Map<Integer, AggregationCache>> aggregationCache; // produtoHash -> (dia -> AggregationCache)
-    private final Map<Integer, Long> accessOrder; // LRU key = dia
+
+    private final Map<Integer, TimeSeries> seriesInMemory = new HashMap<>();
+    private final Map<Integer, Map<Integer, AggregationCache>> aggregationCache = new HashMap<>();
+    private final Map<Integer, Long> lastAccess = new HashMap<>();
 
     // Instrumentation
-    private final AtomicInteger loadFromDiskCount = new AtomicInteger(0);
-    private final AtomicInteger cacheHits = new AtomicInteger(0);
-    private final AtomicInteger evictions = new AtomicInteger(0);
+    private int loadFromDiskCount = 0;
+    private int cacheHits = 0;
+    private int evictions = 0;
+
 
     public SeriesMemoryManager(int maxSeriesInMemory, SeriesPersistence persistence)
     {
         this.maxSeriesInMemory = maxSeriesInMemory;
         this.persistence = persistence;
-
-        this.seriesInMemory = new ConcurrentHashMap<>();
-        this.aggregationCache = new ConcurrentHashMap<>();
-        this.accessOrder = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true));
     }
     /**
      * Obtém os dados de um dia, carregando da memória ou do disco conforme necessário.
@@ -57,27 +55,21 @@ public class SeriesMemoryManager {
     {
         if(maxSeriesInMemory == 0)
             return persistence.loadDayData(dia);
-        if(dia == currentDay)
-            return getOrCreateInMemory(dia);
 
-        // Fast-path: try read-lock to see if present
         lock.readLock().lock();
-        TimeSeries ts;
-        try {
-            ts = seriesInMemory.get(dia);
-            if (ts != null) {
-                cacheHits.incrementAndGet();
-                updateAccessOrder(dia);
+        try{
+            TimeSeries ts = seriesInMemory.get(dia);
+            if(ts != null)
                 return ts;
-            }
-        } finally {
+
+        }finally{
             lock.readLock().unlock();
         }
 
-        // Not present in memory: load from disk and manage memory.
-        // Important: do NOT try to acquire write lock while holding read lock
         return loadFromDiskAndManageMemory(dia);
     }
+
+
 
     /**
      * Adiciona um evento ao dia corrente (em memória) e invalida a cache
@@ -121,6 +113,30 @@ public class SeriesMemoryManager {
         persistence.saveEvento(evento, produto, dia);
     }
 
+    private AggregationCache computeAggregation(String produto, int dias, int currentDay) throws IOException
+    {
+        AggregationCache result = new AggregationCache(produto, dias);
+        int startDay = Math.max(1, currentDay - dias);
+
+        for(int d = startDay; d <= currentDay; d++)
+        {
+            TimeSeries ts = getDayData(d, currentDay);
+            if (ts == null) continue;
+
+            List<Event> events = ts.getEventosProduto(produto);
+            if (events == null) events = List.of();
+
+            AggregationCache daily = new AggregationCache(produto, d);
+            daily.calculate(events);
+            result.merge(daily);
+        }
+
+        if(!result.isCalculated())
+            result.calculate(List.of());
+
+        return result;
+    }
+
     /**
      * Obtém/Calcula cache de agregação para um produto num intervalo de dias.
      *
@@ -132,38 +148,37 @@ public class SeriesMemoryManager {
      */
     public AggregationCache getAggregationCache(String produto, int dias, int currentDay) throws IOException
     {
+        if(maxSeriesInMemory == 0)
+            return computeAggregation(produto, dias, currentDay);
+
+        int produtoHash = produto.hashCode();
+
+        lock.readLock().lock();
+        try{
+            Map<Integer, AggregationCache> productCache = aggregationCache.get(produtoHash);
+            if (productCache != null)
+            {
+                AggregationCache cached = productCache.get(dias);
+                if(cached != null && cached.isCalculated())
+                    return cached;
+            }
+        }finally{
+            lock.readLock().unlock();
+        }
+
+        AggregationCache result = computeAggregation(produto, dias, currentDay);
+
         lock.writeLock().lock();
         try{
-            int produtoHash = produto.hashCode();
-            Map<Integer, AggregationCache> productCache = aggregationCache.computeIfAbsent(produtoHash, p -> new HashMap<>());
-
-            AggregationCache cached = productCache.get(dias);
-            if(cached != null && cached.isCalculated())
-                return cached;
-
-            AggregationCache result = new AggregationCache(produto, dias);
-            int startDay = Math.max(1, currentDay - dias);
-
-            for(int d = startDay; d <= currentDay; d++)
-            {
-                TimeSeries ts = getDayData(d, currentDay);
-                if(ts == null || ts.isEmpty())
-                    continue;
-
-                AggregationCache daily = new AggregationCache(produto, d);
-                daily.calculate(ts.getEventosProduto(produto));
-                result.merge(daily);
-            }
-
-            if(!result.isCalculated())
-                result.calculate(List.of());
-
-            productCache.put(dias, result);
-            return result;
+            aggregationCache.computeIfAbsent(produtoHash, k -> new HashMap<>()).put(dias, result);
         }finally{
             lock.writeLock().unlock();
         }
+
+        return result;
     }
+
+
 
     /**
      * Recupera eventos filtrados por produtos ao longo dos últimos `dias`.
@@ -236,10 +251,7 @@ public class SeriesMemoryManager {
                     .mapToInt(Map::size)
                     .sum();
 
-            return String.format(
-                    "Series=%d | Aggregations=%d",
-                    totalSeries, totalAggregations);
-
+            return String.format("Series=%d | Aggregations=%d", totalSeries, totalAggregations);
         } finally {
             lock.readLock().unlock();
         }
@@ -262,10 +274,10 @@ public class SeriesMemoryManager {
         lock.writeLock().lock();
         try {
             TimeSeries ts = seriesInMemory.get(dia);
-            if (ts != null)
+            if(ts != null)
                 return ts;
 
-            if (countSeries() >= maxSeriesInMemory)
+            if(countSeries() >= maxSeriesInMemory)
                 evictLeastRecentlyUsed();
 
             ts = new TimeSeries(dia, new HashMap<>());
@@ -277,26 +289,29 @@ public class SeriesMemoryManager {
         }
     }
 
+
     private TimeSeries loadFromDiskAndManageMemory(int dia) throws IOException
     {
-        TimeSeries diskData = persistence.loadDayData(dia);
-        loadFromDiskCount.incrementAndGet();
-        if(diskData == null)
-            diskData = new TimeSeries(dia, new HashMap<>());
-
         lock.writeLock().lock();
         try{
-            if(seriesInMemory.containsKey(dia))
+            TimeSeries ts = seriesInMemory.get(dia);
+            if(ts != null)
             {
-                updateAccessOrder(dia);
-                return seriesInMemory.get(dia);
+                lastAccess.put(dia, System.nanoTime());
+                return ts;
             }
 
-            if(countSeries() >= maxSeriesInMemory)
+            TimeSeries diskData = persistence.loadDayData(dia);
+            loadFromDiskCount++;
+
+            if(diskData == null)
+                diskData = new TimeSeries(dia, new HashMap<>());
+
+            if(seriesInMemory.size() >= maxSeriesInMemory)
                 evictLeastRecentlyUsed();
 
             seriesInMemory.put(dia, diskData);
-            updateAccessOrder(dia);
+            lastAccess.put(dia, System.nanoTime());
             return diskData;
 
         }finally{
@@ -304,25 +319,34 @@ public class SeriesMemoryManager {
         }
     }
 
+
     private void evictLeastRecentlyUsed()
     {
-        synchronized (accessOrder) {
-            if (accessOrder.isEmpty())
-                return;
+        long oldest = Long.MAX_VALUE;
+        int oldestDay = -1;
 
-            Integer key = accessOrder.keySet().iterator().next();
-            evict(key);
+        for(Map.Entry<Integer, Long> entrada : lastAccess.entrySet())
+        {
+            if(entrada.getValue() < oldest)
+            {
+                oldest = entrada.getValue();
+                oldestDay = entrada.getKey();
+            }
         }
+
+        if(oldestDay != -1)
+            evict(oldestDay);
     }
+
 
     private void evict(int dia)
     {
         seriesInMemory.remove(dia);
-        accessOrder.remove(dia);
-
+        lastAccess.remove(dia);
         aggregationCache.values().forEach(m -> m.remove(dia));
-        evictions.incrementAndGet();
+        evictions++;
     }
+
 
     private int countSeries()
     {
@@ -331,23 +355,27 @@ public class SeriesMemoryManager {
 
     private void updateAccessOrder(int dia)
     {
-        accessOrder.put(dia, System.currentTimeMillis());
+        lock.writeLock().lock();
+        try {
+            lastAccess.put(dia, System.nanoTime());
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
-    // Instrumentation getters
-    public int getLoadedSeriesCount() {
+
+    public int getLoadedSeriesCount()
+    {
         return seriesInMemory.size();
     }
 
-    public int getLoadFromDiskCount() {
-        return loadFromDiskCount.get();
+    public int getLoadFromDiskCount()
+    {
+        return loadFromDiskCount;
     }
 
-    public int getCacheHits() {
-        return cacheHits.get();
-    }
-
-    public int getEvictions() {
-        return evictions.get();
+    public int getEvictions()
+    {
+        return evictions;
     }
 }

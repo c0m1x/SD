@@ -1,38 +1,41 @@
 package uminho.grupo57;
 
+import java.util.concurrent.TimeUnit;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * Integração dos testes de Performance movidos do diretório `tests`.
- *
- * Mantém os métodos como placeholders desativados (@Disabled) —
- * podem ser ativados/implementar quando o servidor de teste estiver disponível.
  */
 public class PerformanceIntegrationTest {
 
     @Test
-    public void placeholder() {
-        // Smoke test para garantir que o ficheiro é detectado como um teste JUnit
-    }
-
-    // Os métodos abaixo replicam os pontos a implementar (placeholders)
-
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     public void testScalability() throws Exception {
         PerformanceTest.testScalability();
     }
 
+    @Test
+    @Timeout(value = 25, unit = TimeUnit.SECONDS)
     public void testRobustness() throws Exception {
         PerformanceTest.testRobustness();
     }
 
+    @Test
+    @Timeout(value = 25, unit = TimeUnit.SECONDS)
     public void testWorkloadMix() throws Exception {
         PerformanceTest.testWorkloadMix();
     }
 
+    @Test
+    @Timeout(value = 25, unit = TimeUnit.SECONDS)
     public void testNotifications() throws Exception {
         PerformanceTest.testNotifications();
     }
 
+    @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     public void testPersistenceAndMemory() throws Exception {
         PerformanceTest.testPersistenceAndMemory();
     }

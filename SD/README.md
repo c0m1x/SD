@@ -45,6 +45,18 @@ exemplo xdg-open /home/prancha/Documentos/3ano/1s/SD/SD/SD/target/site/apidocs/i
 
 ## Executar os testes
 
+Gerar relatório HTML do JUnit/Surefire:
+
+```bash
+mvn clean test surefire-report:report
+```
+
+Abrir o relatório do módulo `server`:
+
+```bash
+xdg-open server/target/reports/surefire.html
+```
+
 Executar todos os testes do módulo `server` (rápido):
 
 ```bash

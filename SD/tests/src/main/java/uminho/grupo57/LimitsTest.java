@@ -187,7 +187,7 @@ public class LimitsTest {
         System.out.println("      5. Calcular ratio: tempo_disco / tempo_memória");
         System.out.println("      6. Esperado: disco 10-100x mais lento");
         
-        System.out.println("✗ NÃO IMPLEMENTADO - implementar lógica acima");
+        System.out.println("[NAO IMPLEMENTADO] NÃO IMPLEMENTADO - implementar lógica acima");
     }
     
     // TODO: Implementar teste de concorrência
@@ -202,7 +202,7 @@ public class LimitsTest {
         System.out.println("      5. Verificar que não há race conditions");
         System.out.println("      6. Todas threads devem completar sem erros");
         
-        System.out.println("✗ NÃO IMPLEMENTADO - implementar lógica acima");
+        System.out.println("[NAO IMPLEMENTADO] NÃO IMPLEMENTADO - implementar lógica acima");
     }
     
     // TODO: Implementar teste de persistência
@@ -217,7 +217,7 @@ public class LimitsTest {
         System.out.println("      5. Fazer agregação do dia anterior (carrega do disco)");
         System.out.println("      6. Verificar que dados estão corretos");
         
-        System.out.println("✗ NÃO IMPLEMENTADO - implementar lógica acima");
+        System.out.println("[NAO IMPLEMENTADO] NÃO IMPLEMENTADO - implementar lógica acima");
     }
     
     // TODO: Implementar teste com séries grandes
@@ -232,7 +232,7 @@ public class LimitsTest {
         System.out.println("      5. Verificar que agregação completa sem OutOfMemory");
         System.out.println("      6. Documentar tempo de processamento");
         
-        System.out.println("✗ NÃO IMPLEMENTADO - implementar lógica acima");
+        System.out.println("[NAO IMPLEMENTADO] NÃO IMPLEMENTADO - implementar lógica acima");
     }
     
     public static void main(String[] args) {

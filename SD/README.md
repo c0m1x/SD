@@ -1,5 +1,5 @@
 Como Correr o Projeto
-1️--Compilar (Maven multi-module)
+1--Compilar (Maven multi-module)
 
 mvn clean install
 
@@ -8,7 +8,7 @@ mvn clean install
 Executar o Servidor
 ```markdown
 Como Correr o Projeto
-1️--Compilar (Maven multi-module)
+1--Compilar (Maven multi-module)
 
 mvn clean install
 

@@ -12,9 +12,9 @@ public class Main
     private static Scanner scanner = new Scanner(System.in);
 
     public static void main(String[] args) throws InterruptedException {
-        System.out.println("╔═══════════════════════════════════════╗");
-        System.out.println("║   Sistema de Gestão de Compras        ║");
-        System.out.println("╚═══════════════════════════════════════╝\n");
+        System.out.println("============================================================");
+        System.out.println("  Sistema de Gestão de Compras");
+        System.out.println("============================================================\n");
 
         // Conectar ao servidor
         try {
@@ -23,7 +23,7 @@ public class Main
             
             client.connect(host, port);
         } catch (IOException e) {
-            System.err.println("✗ Erro ao conectar: " + e.getMessage());
+            System.err.println("ERRO: Erro ao conectar: " + e.getMessage());
             return;
         }
 

@@ -222,7 +222,7 @@ public class SeriesPersistence {
     }
 
     /**
-     * Método auxiliar para deletar uma diretoria e todos os seus ficheiros
+     * Método auxiliar para eliminar uma diretoria e todos os seus ficheiros
      */
     private void deleteDirectory(Path directory) throws IOException
     {
@@ -236,7 +236,7 @@ public class SeriesPersistence {
                 {
                     if(!file.delete())
                     {
-                        System.err.println("Falha ao deletar arquivo: " + file.getAbsolutePath());
+                        System.err.println("Falha ao eliminar arquivo: " + file.getAbsolutePath());
                     }
                 }
             }
